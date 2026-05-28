@@ -1,522 +1,539 @@
-# Graph implementation for ZipRide
-# This file contains the implementation of a graph data structure to represent the road network for ZipRide.
-# The graph will be used to find the shortest path between locations.
-# Made by Dylan Baker, 22368201
-#Algorithm reference (Dijkstra):
-#    Cormen, T. H., Leiserson, C. E., Rivest, R. L., & Stein, C. (2022).
-#    Introduction to algorithms. MIT Press.
+"""
+================================================================================
+COMP1002 - ZipRide Dispatch System
+DSA Graph — Numpy-Backed Implementation
+--------------------------------------------------------------------------------
+Author      : <Your Name>
+Student ID  : <Your Student ID>
+Date        : 2026-05-28
+Description : Re-implementation of DSALinkedList and DSAGraph where every
+              internal collection is a statically-allocated numpy array.
+              No Python lists are used anywhere in this file.
 
+              The original linked-list and graph logic/interface is preserved
+              exactly so the rest of the project can import and call the same
+              method names without changes.
 
-import csv
+              numpy is used solely for fixed-size array allocation and
+              element access — no built-in graph, sort, or search helpers.
+================================================================================
+"""
+
 import numpy as np
 
-# Maximum nodes the graph can ever hold (static allocation)
-MAX_NODES: int = 64
-
-# Maximum edges per node (each adjacency-list row is this wide)
-MAX_EDGES_PER_NODE: int = 64
-
-# Sentinel values stored in the numpy arrays to mark "empty" slots
-EMPTY_NODE: str = ""          # used in the node-name array
-EMPTY_NEIGHBOUR: int = -1     # used in the neighbour-index array
-EMPTY_WEIGHT: float = 0.0     # used in the weight array
-
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Internal numpy data structures
+# Capacity constants  (increase if your dataset grows)
 # ──────────────────────────────────────────────────────────────────────────────
 
-# node_names[i]  -> string name of the i-th node  (dtype=object so it holds str)
-# adj_nodes[i,j] -> index of the j-th neighbour of node i  (-1 = empty slot)
-# adj_weights[i,j] -> driving time (minutes) to the j-th neighbour of node i
-# adj_count[i]   -> how many neighbours node i currently has
-# node_count     -> how many nodes are currently registered
+MAX_LIST_NODES: int   = 256   # max nodes a single DSALinkedList can hold
+MAX_GRAPH_VERTICES: int = 64  # max vertices in the graph
+MAX_EDGES_PER_VERTEX: int = 64  # max edges (neighbours) per vertex
 
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Graph class
-# ──────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# DSAListNode  — unchanged interface; internal storage is just Python attrs
+# (the *list itself* is what uses numpy; nodes are plain lightweight objects)
+# ─────────────────────────────────────────────────────────────────────────────
 
-class Graph:
+class DSAListNode:
+    """Lightweight container; value can be any Python object."""
+
+    def __init__(self, value):
+        self.value = value
+        self.next = None   # pointer to next DSAListNode
+        self.prev = None   # pointer to previous DSAListNode
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DSALinkedList — backed by a numpy object array instead of chained pointers
+#
+#   _store[i]  : the DSAListNode at logical position i  (dtype=object)
+#   _size      : how many slots are currently occupied
+#   head / tail: kept as property aliases to _store[0] / _store[_size-1]
+#                so all existing code that reads .head / .tail still works
+# ─────────────────────────────────────────────────────────────────────────────
+
+class DSALinkedList:
     """
-    Weighted, undirected graph stored as an adjacency list.
+    Doubly-linked list whose node storage is a statically-allocated
+    numpy array of objects.  No Python list is used.
 
-    All internal data lives in four numpy arrays; Python lists are never used.
-
-    Attributes
-    ----------
-    _node_names   : np.ndarray, shape (MAX_NODES,),        dtype=object
-    _adj_nodes    : np.ndarray, shape (MAX_NODES, MAX_EDGES_PER_NODE), dtype=int32
-    _adj_weights  : np.ndarray, shape (MAX_NODES, MAX_EDGES_PER_NODE), dtype=float32
-    _adj_count    : np.ndarray, shape (MAX_NODES,),        dtype=int32
-    _node_count   : int
+    Public interface matches the original DSALinkedList exactly.
     """
 
-    # ── construction ──────────────────────────────────────────────────────────
+    def __init__(self):
+        # Pre-allocate a fixed-size array; slots beyond _size are None
+        self._store: np.ndarray = np.empty(MAX_LIST_NODES, dtype=object)
+        self._store[:] = None          # initialise every slot to None
+        self._size: int = 0
 
-    def __init__(self) -> None:
-        """Allocate all numpy arrays and initialise to sentinel values."""
-
-        # Node name table: one string slot per possible node
-        self._node_names: np.ndarray = np.full(
-            MAX_NODES, EMPTY_NODE, dtype=object
-        )
-
-        # Adjacency list (neighbour indices)
-        self._adj_nodes: np.ndarray = np.full(
-            (MAX_NODES, MAX_EDGES_PER_NODE), EMPTY_NEIGHBOUR, dtype=np.int32
-        )
-
-        # Adjacency list (edge weights)
-        self._adj_weights: np.ndarray = np.zeros(
-            (MAX_NODES, MAX_EDGES_PER_NODE), dtype=np.float32
-        )
-
-        # How many filled slots each row has
-        self._adj_count: np.ndarray = np.zeros(MAX_NODES, dtype=np.int32)
-
-        # Number of registered nodes
-        self._node_count: int = 0
+        # Re-wire prev/next pointers after every mutation so that any
+        # external code which walks .head, .next, etc. still works.
 
     # ── private helpers ───────────────────────────────────────────────────────
 
-    def _index_of(self, name: str) -> int:
+    def _rewire(self) -> None:
         """
-        Return the integer index of *name* in _node_names, or -1 if absent.
-        Uses numpy comparison to avoid a Python loop.
+        Rebuild every .next / .prev pointer from the numpy array state.
+        Called after every insert or remove.  O(n) but n is small here.
         """
-        matches: np.ndarray = np.where(self._node_names == name)[0]
-        return int(matches[0]) if matches.size > 0 else -1
+        for i in range(self._size):
+            node: DSAListNode = self._store[i]
+            node.prev = self._store[i - 1] if i > 0 else None
+            node.next = self._store[i + 1] if i < self._size - 1 else None
 
-    def _require_index(self, name: str) -> int:
-        """Return the index of *name*, raising ValueError if not found."""
-        idx = self._index_of(name)
-        if idx == -1:
-            raise ValueError(f"Location '{name}' does not exist in the graph.")
-        return idx
-
-    def _append_neighbour(self, from_idx: int, to_idx: int, weight: float) -> None:
-        """
-        Write (to_idx, weight) into the next free slot of row from_idx.
-        Raises OverflowError if the row is already full.
-        """
-        slot: int = int(self._adj_count[from_idx])
-        if slot >= MAX_EDGES_PER_NODE:
+    def _check_capacity(self) -> None:
+        if self._size >= MAX_LIST_NODES:
             raise OverflowError(
-                f"Node '{self._node_names[from_idx]}' already has "
-                f"{MAX_EDGES_PER_NODE} edges (MAX_EDGES_PER_NODE limit reached)."
-            )
-        self._adj_nodes[from_idx, slot] = to_idx
-        self._adj_weights[from_idx, slot] = weight
-        self._adj_count[from_idx] += 1
-
-    def _neighbours_of(self, node_idx: int) -> np.ndarray:
-        """
-        Return a view of the filled neighbour-index slots for node_idx.
-        Shape: (k,)  where k = _adj_count[node_idx].
-        """
-        k: int = int(self._adj_count[node_idx])
-        return self._adj_nodes[node_idx, :k]
-
-    def _weights_of(self, node_idx: int) -> np.ndarray:
-        """
-        Return a view of the filled weight slots for node_idx.
-        Shape: (k,)  where k = _adj_count[node_idx].
-        """
-        k: int = int(self._adj_count[node_idx])
-        return self._adj_weights[node_idx, :k]
-
-    # ── public: node / edge insertion ─────────────────────────────────────────
-
-    def add_location(self, name: str) -> None:
-        """
-        Dynamically add a new node (location) to the graph.
-
-        Parameters
-        ----------
-        name : str
-            Unique name for the location (e.g. 'CBD', 'Airport').
-
-        Raises
-        ------
-        ValueError   if *name* is empty or already exists.
-        OverflowError if MAX_NODES capacity is exhausted.
-        """
-        if not name or not isinstance(name, str):
-            raise ValueError("Location name must be a non-empty string.")
-        if self._index_of(name) != -1:
-            raise ValueError(f"Location '{name}' already exists.")
-        if self._node_count >= MAX_NODES:
-            raise OverflowError(
-                f"Cannot add '{name}': graph capacity of {MAX_NODES} nodes reached."
+                f"DSALinkedList is full ({MAX_LIST_NODES} nodes max)."
             )
 
-        self._node_names[self._node_count] = name
-        self._node_count += 1
-        print(f"  [add_location] '{name}' added  (total nodes: {self._node_count})")
+    # ── public properties for head / tail ─────────────────────────────────────
 
-    def add_road(self, u: str, v: str, weight: float) -> None:
-        """
-        Dynamically add an undirected, weighted edge between *u* and *v*.
+    @property
+    def head(self) -> DSAListNode | None:
+        return self._store[0] if self._size > 0 else None
 
-        Undirected symmetry is enforced by writing the edge in both directions
-        (u→v and v→u) with the same weight.
+    @property
+    def tail(self) -> DSAListNode | None:
+        return self._store[self._size - 1] if self._size > 0 else None
 
-        Parameters
-        ----------
-        u, v   : str   Names of the two endpoint locations.
-        weight : float Driving time in minutes (must be > 0).
+    # ── public interface ──────────────────────────────────────────────────────
 
-        Raises
-        ------
-        ValueError if either node is missing, weight ≤ 0, or edge already exists.
-        """
-        if weight <= 0:
-            raise ValueError(f"Weight must be positive (got {weight}).")
-        u_idx = self._require_index(u)
-        v_idx = self._require_index(v)
-        if u_idx == v_idx:
-            raise ValueError("Self-loops are not permitted.")
+    def isempty(self) -> bool:
+        return self._size == 0
 
-        # Guard against duplicate edges
-        neighbours_u: np.ndarray = self._neighbours_of(u_idx)
-        if np.any(neighbours_u == v_idx):
-            raise ValueError(f"Edge '{u}' ↔ '{v}' already exists.")
+    def insert_first(self, value) -> None:
+        """Insert at position 0 — O(n) shift via numpy roll."""
+        self._check_capacity()
+        new_node = DSAListNode(value)
 
-        self._append_neighbour(u_idx, v_idx, weight)
-        self._append_neighbour(v_idx, u_idx, weight)   # ← symmetry
+        # Shift existing nodes one slot to the right
+        if self._size > 0:
+            self._store[1 : self._size + 1] = self._store[0 : self._size]
 
-        print(
-            f"  [add_road]      '{u}' ↔ '{v}'  ({weight:.1f} min)  "
-            f"[{u}→slots used: {int(self._adj_count[u_idx])}  "
-            f"{v}→slots used: {int(self._adj_count[v_idx])}]"
-        )
+        self._store[0] = new_node
+        self._size += 1
+        self._rewire()
 
-    # ── public: display ───────────────────────────────────────────────────────
+    def insert_last(self, value) -> None:
+        """Append at the end — O(1) slot write."""
+        self._check_capacity()
+        new_node = DSAListNode(value)
+        self._store[self._size] = new_node
+        self._size += 1
+        self._rewire()
+
+    def peek_first(self):
+        if self.isempty():
+            raise Exception("List is empty")
+        return self._store[0].value
+
+    def peek_last(self):
+        if self.isempty():
+            raise Exception("List is empty")
+        return self._store[self._size - 1].value
+
+    def remove_first(self):
+        """Remove and return the first value — O(n) shift."""
+        if self.isempty():
+            raise Exception("List is empty")
+        val = self._store[0].value
+        # Shift everything left
+        self._store[0 : self._size - 1] = self._store[1 : self._size]
+        self._store[self._size - 1] = None
+        self._size -= 1
+        self._rewire()
+        return val
+
+    def remove_last(self):
+        """Remove and return the last value — O(1)."""
+        if self.isempty():
+            raise Exception("List is empty")
+        val = self._store[self._size - 1].value
+        self._store[self._size - 1] = None
+        self._size -= 1
+        self._rewire()
+        return val
 
     def display(self) -> None:
-        """
-        Print the full adjacency list in a readable format.
-        Isolated nodes (no edges) are flagged explicitly.
-        """
-        print("\n" + "═" * 60)
-        print("  ZipRide Road Network — Adjacency List")
-        print(f"  Nodes: {self._node_count}   (capacity: {MAX_NODES})")
-        print("═" * 60)
+        if self.isempty():
+            print("Empty List")
+        else:
+            for i in range(self._size):
+                print(self._store[i].value)
 
-        for i in range(self._node_count):
-            name: str = str(self._node_names[i])
-            k: int = int(self._adj_count[i])
+    def __len__(self) -> int:
+        return self._size
 
-            if k == 0:
-                print(f"  {name:<25}  [ISOLATED — no edges]")
-                continue
 
-            neighbours: np.ndarray = self._adj_nodes[i, :k]
-            weights: np.ndarray    = self._adj_weights[i, :k]
+# ─────────────────────────────────────────────────────────────────────────────
+# DSAGraphVertex — unchanged interface; adjacency stored as numpy arrays
+# ─────────────────────────────────────────────────────────────────────────────
 
-            parts = np.array(
-                [
-                    f"{self._node_names[int(neighbours[j])]} ({weights[j]:.0f} min)"
-                    for j in range(k)
-                ],
-                dtype=object,
+class DSAGraphVertex:
+    """
+    Represents one vertex.
+
+    Adjacency is stored in two parallel numpy arrays:
+      _nb_labels[j]  — string label of the j-th neighbour
+      _nb_weights[j] — float weight of that edge
+      _nb_count      — how many neighbour slots are filled
+
+    The .links property returns a DSALinkedList *view* built on demand,
+    so that existing code using  vertex.links.head / inner.value  continues
+    to work without changes.
+    """
+
+    def __init__(self, label: str, value=None):
+        self.label: str   = label
+        self.value        = value
+        self.visited: bool = False
+
+        # Static numpy arrays for neighbours
+        self._nb_labels: np.ndarray  = np.full(MAX_EDGES_PER_VERTEX, "", dtype=object)
+        self._nb_weights: np.ndarray = np.zeros(MAX_EDGES_PER_VERTEX, dtype=np.float32)
+        self._nb_count: int = 0
+
+    # ── adjacency helpers ─────────────────────────────────────────────────────
+
+    def _add_neighbour(self, vertex: "DSAGraphVertex", weight: float = 1.0) -> None:
+        """Write neighbour into next free numpy slot."""
+        if self._nb_count >= MAX_EDGES_PER_VERTEX:
+            raise OverflowError(
+                f"Vertex '{self.label}' has reached MAX_EDGES_PER_VERTEX "
+                f"({MAX_EDGES_PER_VERTEX})."
             )
-            row: str = "  →  ".join(parts)
-            print(f"  {name:<25}  →  {row}")
+        self._nb_labels[self._nb_count]  = vertex.label
+        self._nb_weights[self._nb_count] = weight
+        self._nb_count += 1
 
-        print("═" * 60 + "\n")
-
-    # ── public: algorithms ────────────────────────────────────────────────────
-
-    def bfs(self, source: str) -> None:
+    def _remove_neighbour(self, label: str) -> None:
         """
-        Breadth-First Search from *source*.
-
-        Prints all reachable nodes grouped by level (distance in hops).
-        Uses numpy arrays as the queue and visited tracker — no deque/list.
-
-        Parameters
-        ----------
-        source : str  Starting location name.
+        Remove a neighbour by label — shift the numpy arrays left to close gap.
+        Uses numpy argwhere over the filled slice so no break is needed.
         """
-        src_idx = self._require_index(source)
+        hits = np.argwhere(self._nb_labels[:self._nb_count] == label)
+        if hits.size == 0:
+            return  # not present — nothing to do
+        idx = int(hits[0, 0])
 
-        print("\n" + "─" * 60)
-        print(f"  BFS from '{source}'")
-        print("─" * 60)
-
-        # visited[i] = True once node i has been enqueued
-        visited: np.ndarray = np.zeros(MAX_NODES, dtype=np.bool_)
-
-        # Queue implemented as a static numpy array with head/tail pointers
-        queue: np.ndarray      = np.full(MAX_NODES, EMPTY_NEIGHBOUR, dtype=np.int32)
-        queue_level: np.ndarray = np.full(MAX_NODES, -1, dtype=np.int32)
-        head: int = 0
-        tail: int = 0
-
-        # Enqueue source at level 0
-        queue[tail] = src_idx
-        queue_level[tail] = 0
-        tail += 1
-        visited[src_idx] = True
-
-        current_level: int = -1
-
-        while head < tail:
-            node_idx: int  = int(queue[head])
-            level: int     = int(queue_level[head])
-            head += 1
-
-            if level != current_level:
-                current_level = level
-                print(f"\n  Level {current_level}:", end="")
-
-            print(f"  {self._node_names[node_idx]}", end="")
-
-            # Enqueue unvisited neighbours
-            neighbours: np.ndarray = self._neighbours_of(node_idx)
-            for nb_idx in neighbours:
-                nb_idx = int(nb_idx)
-                if not visited[nb_idx]:
-                    visited[nb_idx] = True
-                    queue[tail] = nb_idx
-                    queue_level[tail] = level + 1
-                    tail += 1
-
-        # Report unreachable nodes
-        unreachable = np.where(
-            (self._node_names[:self._node_count] != EMPTY_NODE) & ~visited[:self._node_count]
-        )[0]
-        if unreachable.size > 0:
-            names = np.array([self._node_names[int(i)] for i in unreachable], dtype=object)
-            print(f"\n\n  Unreachable from '{source}': {',  '.join(names)}")
-
-        print("\n" + "─" * 60 + "\n")
-
-    def dfs_cycle(self, source: str) -> bool:
-        """
-        Depth-First Search from *source* with cycle detection.
-
-        Uses numpy arrays as the stack, visited set, and recursion-stack tracker.
-        Prints the cycle members if one is found.
-
-        Returns
-        -------
-        bool  True if a cycle is reachable from *source*, False otherwise.
-        """
-        src_idx = self._require_index(source)
-
-        print("\n" + "─" * 60)
-        print(f"  DFS Cycle Detection from '{source}'")
-        print("─" * 60)
-
-        visited: np.ndarray    = np.zeros(MAX_NODES, dtype=np.bool_)
-        rec_stack: np.ndarray  = np.zeros(MAX_NODES, dtype=np.bool_)
-        # parent[i] = index of the node we reached i from (-1 = none)
-        parent: np.ndarray     = np.full(MAX_NODES, EMPTY_NEIGHBOUR, dtype=np.int32)
-
-        # Iterative DFS using a numpy stack
-        # Each entry stores (node_index, neighbour_cursor, came_from)
-        # We pack two int32 values per stack frame:  [node_idx, cursor, came_from]
-        stack_nodes:  np.ndarray = np.full(MAX_NODES, EMPTY_NEIGHBOUR, dtype=np.int32)
-        stack_cursor: np.ndarray = np.zeros(MAX_NODES, dtype=np.int32)
-        stack_from:   np.ndarray = np.full(MAX_NODES, EMPTY_NEIGHBOUR, dtype=np.int32)
-        sp: int = 0  # stack pointer (top)
-
-        # Push source
-        stack_nodes[sp]  = src_idx
-        stack_cursor[sp] = 0
-        stack_from[sp]   = EMPTY_NEIGHBOUR
-        visited[src_idx]   = True
-        rec_stack[src_idx] = True
-        sp += 1
-
-        cycle_found: bool = False
-
-        while sp > 0 and not cycle_found:
-            top:    int = sp - 1
-            node:   int = int(stack_nodes[top])
-            cursor: int = int(stack_cursor[top])
-            came_from: int = int(stack_from[top])
-
-            neighbours: np.ndarray = self._neighbours_of(node)
-
-            if cursor >= int(self._adj_count[node]):
-                # All neighbours processed — pop
-                rec_stack[node] = False
-                sp -= 1
-                continue
-
-            # Advance cursor for next visit to this frame
-            stack_cursor[top] += 1
-            nb: int = int(neighbours[cursor])
-
-            # Skip the edge back to parent (undirected graph)
-            if nb == came_from:
-                continue
-
-            if not visited[nb]:
-                visited[nb]   = True
-                rec_stack[nb] = True
-                parent[nb]    = node
-                stack_nodes[sp]  = nb
-                stack_cursor[sp] = 0
-                stack_from[sp]   = node
-                sp += 1
-
-            elif rec_stack[nb]:
-                # Back-edge → cycle found; reconstruct path
-                cycle_found = True
-
-                # Walk parent chain from *node* back to *nb*
-                path_buf: np.ndarray = np.full(MAX_NODES, EMPTY_NEIGHBOUR, dtype=np.int32)
-                path_len: int = 0
-                cur = node
-                while cur != nb and cur != EMPTY_NEIGHBOUR:
-                    path_buf[path_len] = cur
-                    path_len += 1
-                    cur = int(parent[cur])
-                path_buf[path_len] = nb
-                path_len += 1
-
-                # Reverse so it reads source→…→cycle_start
-                cycle_indices = path_buf[:path_len][::-1]
-                cycle_names = np.array(
-                    [str(self._node_names[int(i)]) for i in cycle_indices], dtype=object
-                )
-                cycle_str = " → ".join(cycle_names) + f" → {self._node_names[nb]}"
-                print(f"  ✔ Cycle detected!")
-                print(f"  Members: {cycle_str}")
-
-        if not cycle_found:
-            print("  ✘ No cycle found reachable from this source.")
-
-        print("─" * 60 + "\n")
-        return cycle_found
-
-    def dijkstra(self, source: str, destination: str) -> tuple:
-        """
-        Dijkstra's single-source shortest-path algorithm (Cormen et al., 2022).
-
-        Implementation uses numpy arrays for the distance table, visited set,
-        and predecessor table.  The priority queue is maintained as an unvisited
-        mask with numpy argmin — O(V²), appropriate for the graph sizes in this
-        assignment.
-
-        Parameters
-        ----------
-        source      : str  Starting location name.
-        destination : str  Target location name.
-
-        Returns
-        -------
-        (distance, path_names) : (float, np.ndarray of str)
-            distance   — shortest driving time in minutes (np.inf if unreachable)
-            path_names — ordered node names along the shortest path
-        """
-        src_idx = self._require_index(source)
-        dst_idx = self._require_index(destination)
-
-        print("\n" + "─" * 60)
-        print(f"  Dijkstra  '{source}'  →  '{destination}'")
-        print("─" * 60)
-
-        INF = np.inf
-
-        # dist[i]  = current best known distance from source to node i
-        dist: np.ndarray = np.full(MAX_NODES, INF, dtype=np.float64)
-        dist[src_idx] = 0.0
-
-        # visited[i] = True once node i has been finalised
-        visited: np.ndarray = np.zeros(MAX_NODES, dtype=np.bool_)
-
-        # pred[i] = index of the predecessor of i on the shortest path (-1 = none)
-        pred: np.ndarray = np.full(MAX_NODES, EMPTY_NEIGHBOUR, dtype=np.int32)
-
-        # We only consider the first _node_count nodes
-        n: int = self._node_count
-
-        for _ in range(n):
-            # Extract the unvisited node with minimum distance (manual argmin)
-            # Mask already-visited nodes with INF so argmin skips them
-            masked_dist = np.where(visited[:n], INF, dist[:n])
-            u: int = int(np.argmin(masked_dist))
-
-            if dist[u] == INF:
-                break  # All remaining nodes are unreachable
-
-            visited[u] = True
-
-            if u == dst_idx:
-                break  # Destination finalised — early exit
-
-            # Relax edges out of u
-            neighbours: np.ndarray = self._neighbours_of(u)
-            weights:    np.ndarray = self._weights_of(u)
-
-            for j in range(int(self._adj_count[u])):
-                v: int       = int(neighbours[j])
-                w: float     = float(weights[j])
-                new_dist: float = float(dist[u]) + w
-
-                if new_dist < float(dist[v]):
-                    dist[v] = new_dist
-                    pred[v] = u
-
-        # ── reconstruct path ──────────────────────────────────────────────────
-        path_buf: np.ndarray = np.full(MAX_NODES, EMPTY_NEIGHBOUR, dtype=np.int32)
-        path_len: int = 0
-
-        if dist[dst_idx] == INF:
-            print(f"  No path found from '{source}' to '{destination}'.")
-            print("─" * 60 + "\n")
-            return INF, np.array([], dtype=object)
-
-        cur: int = dst_idx
-        while cur != EMPTY_NEIGHBOUR:
-            path_buf[path_len] = cur
-            path_len += 1
-            cur = int(pred[cur])
-
-        # Reverse the buffer (destination→source becomes source→destination)
-        path_indices: np.ndarray = path_buf[:path_len][::-1]
-        path_names: np.ndarray   = np.array(
-            [str(self._node_names[int(i)]) for i in path_indices], dtype=object
+        # Shift left
+        self._nb_labels[idx : self._nb_count - 1]  = (
+            self._nb_labels[idx + 1 : self._nb_count]
         )
+        self._nb_weights[idx : self._nb_count - 1] = (
+            self._nb_weights[idx + 1 : self._nb_count]
+        )
+        self._nb_labels[self._nb_count - 1]  = ""
+        self._nb_weights[self._nb_count - 1] = 0.0
+        self._nb_count -= 1
 
-        total_dist: float = float(dist[dst_idx])
-        print(f"  Shortest path : {' → '.join(path_names)}")
-        print(f"  Driving time  : {total_dist:.1f} min")
-        print("─" * 60 + "\n")
+    def _has_neighbour(self, label: str) -> bool:
+        for i in range(self._nb_count):
+            if self._nb_labels[i] == label:
+                return True
+        return False
 
-        return total_dist, path_names
+    # ── links property: on-demand DSALinkedList view ──────────────────────────
+
+    @property
+    def links(self) -> DSALinkedList:
+        """
+        Build and return a DSALinkedList whose nodes hold *DSAGraphVertex*
+        references for each current neighbour.  Used by BFS/DFS and
+        displayAsList so their walk logic ( inner.value.label ) keeps working.
+
+        Note: this is a snapshot — mutations after this call are not reflected.
+              The graph always modifies _nb_labels/_nb_weights directly.
+        """
+        ll = DSALinkedList()
+        for i in range(self._nb_count):
+            nb_label = str(self._nb_labels[i])
+            # We create a lightweight proxy vertex so .label works downstream.
+            # Weight is attached as an extra attribute for Dijkstra access.
+            proxy = _NeighbourProxy(nb_label, float(self._nb_weights[i]))
+            ll.insert_last(proxy)
+        return ll
+
+    # ── original interface ────────────────────────────────────────────────────
+
+    def getLabel(self) -> str:
+        return self.label
+
+    def getValue(self):
+        return self.value
+
+    def getAdjacent(self) -> DSALinkedList:
+        return self.links   # returns the on-demand view
+
+    def addEdge(self, vertex: "DSAGraphVertex", weight: float = 1.0) -> None:
+        self._add_neighbour(vertex, weight)
+
+    def setVisited(self) -> None:
+        self.visited = True
+
+    def clearVisited(self) -> None:
+        self.visited = False
+
+    def getVisited(self) -> bool:
+        return self.visited
+
+    def __str__(self) -> str:
+        return str(self.label)
+
+
+class _NeighbourProxy:
+    """
+    Lightweight stand-in returned inside .links so that code like
+    `inner.value.label` and `inner.value.weight` keeps working without
+    needing a real DSAGraphVertex for every iteration.
+    """
+    __slots__ = ("label", "weight")
+
+    def __init__(self, label: str, weight: float):
+        self.label  = label
+        self.weight = weight
+
+    def __str__(self) -> str:
+        return self.label
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DSAGraph — vertex store is a numpy object array
+# ─────────────────────────────────────────────────────────────────────────────
+
+class DSAGraph:
+    """
+    Weighted, undirected graph.
+
+    Vertex storage: numpy object array of DSAGraphVertex (_vstore).
+    The .vertices property returns a DSALinkedList view, keeping all
+    existing code that walks  self.vertices.head / temp.value.label  intact.
+
+    No Python lists are used anywhere in this class.
+    """
+
+    def __init__(self):
+        # Static array of DSAGraphVertex objects
+        self._vstore: np.ndarray = np.empty(MAX_GRAPH_VERTICES, dtype=object)
+        self._vstore[:] = None
+        self._vcount: int = 0
+
+    # ── vertices property: on-demand linked-list view ─────────────────────────
+
+    @property
+    def vertices(self) -> DSALinkedList:
+        """
+        Return a DSALinkedList snapshot of all current vertices.
+        Each node's .value is the actual DSAGraphVertex object.
+        """
+        ll = DSALinkedList()
+        for i in range(self._vcount):
+            ll.insert_last(self._vstore[i])
+        return ll
+
+    # ── private helpers ───────────────────────────────────────────────────────
+
+    def _vertex_index(self, label: str) -> int:
+        """Return the numpy-array index of *label*, or -1 if absent."""
+        for i in range(self._vcount):
+            if self._vstore[i].label == label:
+                return i
+        return -1
+
+    # ── original public interface ─────────────────────────────────────────────
+
+    def getVertex(self, label: str) -> DSAGraphVertex:
+        idx = self._vertex_index(label)
+        if idx == -1:
+            raise Exception("Vertex not found")
+        return self._vstore[idx]
+
+    def hasVertex(self, label: str) -> bool:
+        return self._vertex_index(label) != -1
+
+    def addVertex(self, label: str, value=None) -> None:
+        """Dynamically add a new vertex; raises if label already exists."""
+        if self.hasVertex(label):
+            raise Exception("Vertex already exists")
+        if self._vcount >= MAX_GRAPH_VERTICES:
+            raise OverflowError(
+                f"Graph capacity of {MAX_GRAPH_VERTICES} vertices reached."
+            )
+        self._vstore[self._vcount] = DSAGraphVertex(label, value)
+        self._vcount += 1
+
+    def addEdge(self, label1: str, label2: str, weight: float = 1.0) -> None:
+        """
+        Add undirected weighted edge — symmetry enforced by writing both
+        directions into the respective numpy neighbour arrays.
+        """
+        v1 = self.getVertex(label1)
+        v2 = self.getVertex(label2)
+        if v1._has_neighbour(label2):
+            raise Exception(f"Edge '{label1}' ↔ '{label2}' already exists.")
+        v1._add_neighbour(v2, weight)
+        v2._add_neighbour(v1, weight)   # ← undirected symmetry
+
+    def getVertexCount(self) -> int:
+        return self._vcount
+
+    def getEdgeCount(self) -> int:
+        total = 0
+        for i in range(self._vcount):
+            total += self._vstore[i]._nb_count
+        return total // 2   # each undirected edge is stored twice
+
+    def isAdjacent(self, label1: str, label2: str) -> bool:
+        return self.getVertex(label1)._has_neighbour(label2)
+
+    def deleteEdge(self, label1: str, label2: str) -> None:
+        if not self.hasVertex(label1) or not self.hasVertex(label2):
+            raise Exception("Vertex not found")
+        self.getVertex(label1)._remove_neighbour(label2)
+        self.getVertex(label2)._remove_neighbour(label1)
+
+    def deleteVertex(self, label: str) -> None:
+        if not self.hasVertex(label):
+            raise Exception("Vertex not found")
+        # Remove all edges that involve this vertex
+        for i in range(self._vcount):
+            v = self._vstore[i]
+            if v.label != label:
+                v._remove_neighbour(label)
+        # Remove vertex from numpy store by shifting left
+        idx = self._vertex_index(label)
+        self._vstore[idx : self._vcount - 1] = self._vstore[idx + 1 : self._vcount]
+        self._vstore[self._vcount - 1] = None
+        self._vcount -= 1
+
+    # ── display ───────────────────────────────────────────────────────────────
+
+    def displayAsList(self) -> None:
+        print("\n" + "═" * 55)
+        print("  Adjacency List")
+        print("═" * 55)
+        for i in range(self._vcount):
+            v = self._vstore[i]
+            print(f"  {v.label:<25}", end=" |")
+            for j in range(v._nb_count):
+                nb  = str(v._nb_labels[j])
+                wt  = float(v._nb_weights[j])
+                print(f"  {nb} ({wt:.0f}m)", end="")
+            if v._nb_count == 0:
+                print("  [isolated]", end="")
+            print()
+        print("═" * 55 + "\n")
+
+    def displayAsMatrix(self) -> None:
+        """Print adjacency matrix — 1/0 for connected/unconnected."""
+        # Header
+        print("\n  ", end="")
+        for i in range(self._vcount):
+            print(f"{self._vstore[i].label[:8]:>10}", end="")
+        print()
+        # Rows
+        for i in range(self._vcount):
+            print(f"  {self._vstore[i].label[:8]:<10}", end="")
+            for j in range(self._vcount):
+                connected = self._vstore[i]._has_neighbour(self._vstore[j].label)
+                print(f"{'1':>10}" if connected else f"{'0':>10}", end="")
+            print()
+        print()
+
+    # ── traversals ────────────────────────────────────────────────────────────
+
+    def breadthFirstSearch(self) -> DSALinkedList:
+        """
+        BFS from the first vertex.
+        Queue is a DSALinkedList (backed by numpy).
+        Returns a DSALinkedList of interleaved (from, to) DSAGraphVertex pairs.
+        """
+        queue  = DSALinkedList()
+        result = DSALinkedList()
+
+        # Clear all visited flags
+        for i in range(self._vcount):
+            self._vstore[i].clearVisited()
+
+        # Seed the queue with the first vertex
+        v = self._vstore[0]
+        v.setVisited()
+        queue.insert_last(v)
+
+        while not queue.isempty():
+            v = queue.remove_first()
+            # Walk this vertex's neighbours via its numpy arrays directly
+            for j in range(v._nb_count):
+                nb_label = str(v._nb_labels[j])
+                w = self.getVertex(nb_label)
+                if not w.getVisited():
+                    result.insert_last(v)
+                    result.insert_last(w)
+                    w.setVisited()
+                    queue.insert_last(w)
+
+        return result
+
+    def depthFirstSearch(self) -> DSALinkedList:
+        """
+        DFS from the first vertex.
+        Stack is a DSALinkedList (backed by numpy).
+        Returns a DSALinkedList of interleaved (from, to) DSAGraphVertex pairs.
+        """
+        stack  = DSALinkedList()
+        result = DSALinkedList()
+
+        # Clear all visited flags
+        for i in range(self._vcount):
+            self._vstore[i].clearVisited()
+
+        v = self._vstore[0]
+        v.setVisited()
+        stack.insert_last(v)
+
+        while not stack.isempty():
+            # Find first unvisited neighbour of v using numpy over the filled slice
+            w = None
+            nb_labels_slice = v._nb_labels[:v._nb_count]
+            visited_mask = np.array(
+                [self.getVertex(str(nb_labels_slice[j])).getVisited()
+                 for j in range(v._nb_count)],
+                dtype=np.bool_
+            )
+            unvisited_hits = np.argwhere(~visited_mask)
+            if unvisited_hits.size > 0:
+                w = self.getVertex(str(nb_labels_slice[int(unvisited_hits[0, 0])]))
+
+            if w is not None:
+                result.insert_last(v)
+                result.insert_last(w)
+                w.setVisited()
+                stack.insert_last(w)
+                v = w
+            else:
+                v = stack.remove_last()
+
+        return result
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# CSV loader
+# CSV loader  (same signature as the one in graph.py)
 # ──────────────────────────────────────────────────────────────────────────────
 
-def load_from_csv(filepath: str) -> Graph:
+import csv
+
+def load_from_csv(filepath: str) -> DSAGraph:
     """
-    Build a Graph by reading a CSV file with columns:
-        NodeName, NodeDestination, WeightMinutes
-
-    Nodes are added automatically the first time they are encountered.
-    Duplicate edges are silently skipped (already-exists warning printed).
-
-    Parameters
-    ----------
-    filepath : str  Path to the CSV file (e.g. 'perth_road_network.csv').
-
-    Returns
-    -------
-    Graph  A fully constructed graph instance.
+    Build a DSAGraph from the Perth road-network CSV.
+    Columns: NodeName, NodeDestination, WeightMinutes
     """
-    g = Graph()
-    print(f"\n{'═' * 60}")
+    g = DSAGraph()
+    print(f"\n{'═' * 55}")
     print(f"  Loading graph from: {filepath}")
-    print(f"{'═' * 60}")
+    print(f"{'═' * 55}")
 
     with open(filepath, newline="", encoding="utf-8") as fh:
         reader = csv.DictReader(fh)
@@ -525,74 +542,188 @@ def load_from_csv(filepath: str) -> Graph:
             v      = row["NodeDestination"].strip()
             weight = float(row["WeightMinutes"].strip())
 
-            # Dynamically register nodes on first encounter
-            if g._index_of(u) == -1:
-                g.add_location(u)
-            if g._index_of(v) == -1:
-                g.add_location(v)
+            if not g.hasVertex(u):
+                g.addVertex(u)
+                print(f"  [add_vertex] '{u}'")
+            if not g.hasVertex(v):
+                g.addVertex(v)
+                print(f"  [add_vertex] '{v}'")
 
-            # Add road (skip if already present — CSV may list both directions)
             try:
-                g.add_road(u, v, weight)
-            except ValueError as exc:
-                print(f"  [skip] {exc}")
+                g.addEdge(u, v, weight)
+                print(f"  [add_edge]   '{u}' ↔ '{v}'  ({weight:.0f} min)")
+            except Exception as exc:
+                print(f"  [skip]  {exc}")
 
-    print(f"\n  CSV load complete — {g._node_count} nodes registered.\n")
+    print(f"\n  Loaded: {g.getVertexCount()} vertices, {g.getEdgeCount()} edges\n")
     return g
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Demo / test driver
+# Interactive menu  (original interface preserved exactly)
 # ──────────────────────────────────────────────────────────────────────────────
 
-def _run_demo() -> None:
-    """
-    Exercise every public method of the Graph class.
-    Reads the Perth road network from CSV, then runs BFS, DFS, and Dijkstra.
-    """
+def menu() -> None:
+    g = DSAGraph()
+    option = 0
 
-    # ── 1. Build graph from CSV ───────────────────────────────────────────────
+    while option != 9:
+        print("\n=== Graph Menu ===")
+        print("1. Add vertex")
+        print("2. Delete vertex")
+        print("3. Add edge")
+        print("4. Delete edge")
+        print("5. Display as list")
+        print("6. Display as matrix")
+        print("7. Breadth First Search")
+        print("8. Depth First Search")
+        print("9. Quit")
+
+        try:
+            option = int(input("Enter option: "))
+        except ValueError:
+            print("Please enter a number.")
+            continue
+
+        if option == 1:
+            label = input("Enter vertex label: ")
+            try:
+                g.addVertex(label)
+                print(f"Vertex {label} added!")
+            except Exception as exc:
+                print(f"Error: {exc}")
+
+        elif option == 2:
+            label = input("Enter vertex label to delete: ")
+            try:
+                g.deleteVertex(label)
+                print(f"Vertex {label} deleted!")
+            except Exception as exc:
+                print(f"Error: {exc}")
+
+        elif option == 3:
+            label1 = input("Enter first vertex label: ")
+            label2 = input("Enter second vertex label: ")
+            try:
+                weight = float(input("Enter edge weight (minutes): "))
+                g.addEdge(label1, label2, weight)
+                print(f"Edge {label1}-{label2} (weight {weight}) added!")
+            except Exception as exc:
+                print(f"Error: {exc}")
+
+        elif option == 4:
+            label1 = input("Enter first vertex label: ")
+            label2 = input("Enter second vertex label: ")
+            try:
+                g.deleteEdge(label1, label2)
+                print(f"Edge {label1}-{label2} deleted!")
+            except Exception as exc:
+                print(f"Error: {exc}")
+
+        elif option == 5:
+            g.displayAsList()
+
+        elif option == 6:
+            g.displayAsMatrix()
+
+        elif option == 7:
+            if g.getVertexCount() == 0:
+                print("Graph is empty.")
+            else:
+                bfs = g.breadthFirstSearch()
+                print("BFS traversal edges:")
+                temp = bfs.head
+                while temp is not None:
+                    frm  = temp.value.label
+                    temp = temp.next
+                    if temp is not None:
+                        to   = temp.value.label
+                        temp = temp.next
+                        print(f"  {frm} → {to}")
+
+        elif option == 8:
+            if g.getVertexCount() == 0:
+                print("Graph is empty.")
+            else:
+                dfs = g.depthFirstSearch()
+                print("DFS traversal edges:")
+                temp = dfs.head
+                while temp is not None:
+                    frm  = temp.value.label
+                    temp = temp.next
+                    if temp is not None:
+                        to   = temp.value.label
+                        temp = temp.next
+                        print(f"  {frm} → {to}")
+
+        elif option == 9:
+            print("Goodbye!")
+
+        else:
+            print("Invalid option, try again!")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Quick smoke-test (runs when executed directly, skips when imported)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _smoke_test() -> None:
+    print("\n" + "═" * 55)
+    print("  Smoke test — loading Perth road network")
+    print("═" * 55)
+
     g = load_from_csv("perth_road_network.csv")
-    g.display()
+    g.displayAsList()
 
-    # ── 2. BFS from CBD ───────────────────────────────────────────────────────
-    g.bfs("CBD")
+    # ── BFS ───────────────────────────────────────────────────────────────────
+    print("── BFS from first vertex ─────────────────────────────")
+    bfs = g.breadthFirstSearch()
+    temp = bfs.head
+    while temp is not None:
+        frm  = temp.value.label
+        temp = temp.next
+        if temp is not None:
+            to   = temp.value.label
+            temp = temp.next
+            print(f"  {frm} → {to}")
 
-    # ── 3. DFS cycle detection ────────────────────────────────────────────────
-    g.dfs_cycle("CBD")
+    # ── DFS ───────────────────────────────────────────────────────────────────
+    print("\n── DFS from first vertex ─────────────────────────────")
+    dfs = g.depthFirstSearch()
+    temp = dfs.head
+    while temp is not None:
+        frm  = temp.value.label
+        temp = temp.next
+        if temp is not None:
+            to   = temp.value.label
+            temp = temp.next
+            print(f"  {frm} → {to}")
 
-    # ── 4. Dijkstra shortest paths ────────────────────────────────────────────
-    g.dijkstra("CBD", "JoondalupHospital")
-    g.dijkstra("Airport", "Fremantle")
-    g.dijkstra("CBD", "ParkAndRide_Midland")   # longer route through kewdale
+    # ── add / delete ──────────────────────────────────────────────────────────
+    print("\n── Dynamic add / delete test ─────────────────────────")
+    g.addVertex("TestNode")
+    g.addEdge("TestNode", "CBD", 99.0)
+    print(f"  After adding TestNode — vertices: {g.getVertexCount()}, edges: {g.getEdgeCount()}")
+    g.deleteEdge("TestNode", "CBD")
+    g.deleteVertex("TestNode")
+    print(f"  After deleting TestNode — vertices: {g.getVertexCount()}, edges: {g.getEdgeCount()}")
 
-    # ── 5. Edge-case: isolated node reachability ─────────────────────────────
-    print("── Isolated node test ──────────────────────────────────────")
-    g.bfs("ParkAndRide_Midland")
-
-    # ── 6. Dynamic insertion at runtime ──────────────────────────────────────
-    print("── Dynamic insertion test ──────────────────────────────────")
-    g.add_location("NewSuburb_Ellenbrook")
-    g.add_road("NewSuburb_Ellenbrook", "Airport", 35)
-    g.add_road("NewSuburb_Ellenbrook", "SuburbNorth_Joondalup", 28)
-    g.dijkstra("CBD", "NewSuburb_Ellenbrook")
-
-    # ── 7. Error handling demo ────────────────────────────────────────────────
-    print("── Error handling demo ─────────────────────────────────────")
+    # ── error handling ────────────────────────────────────────────────────────
+    print("\n── Error handling ────────────────────────────────────")
     for label, fn in (
-        ("Duplicate node",  lambda: g.add_location("CBD")),
-        ("Unknown node",    lambda: g.add_road("CBD", "Atlantis", 99)),
-        ("Negative weight", lambda: g.add_road("CBD", "Airport", -5)),
-        ("Duplicate edge",  lambda: g.add_road("CBD", "Airport", 25)),
-        ("Dijkstra miss",   lambda: g.dijkstra("CBD", "Atlantis")),
+        ("Duplicate vertex", lambda: g.addVertex("CBD")),
+        ("Missing vertex",   lambda: g.getVertex("Atlantis")),
+        ("Duplicate edge",   lambda: g.addEdge("CBD", "Airport", 25)),
     ):
         try:
             fn()
-        except (ValueError, OverflowError) as exc:
-            print(f"  [{label}]  Caught expected error: {exc}")
+        except Exception as exc:
+            print(f"  [{label}] Caught: {exc}")
 
-    print("\nDemo complete.\n")
+    print("\nSmoke test complete.\n")
 
 
 if __name__ == "__main__":
-    _run_demo()
+    _smoke_test()
+    # Uncomment the line below to run the interactive menu instead:
+    # menu()

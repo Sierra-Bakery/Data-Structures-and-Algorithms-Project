@@ -1,9 +1,6 @@
+# COMP1002 - ZipRide Dispatch System
+# This is the main file for the ZipRide Dispatch System.
+# Made by Dylan Baker 22368201
 
-def __main__():
-    print("Welcome to ZipRide")
-    
-    
-    
-    
-if __name__ == "__main__":
-    __main__()
+
+print("Welcome to the ZipRide Dispatch System!")
