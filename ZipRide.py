@@ -1,4 +1,3 @@
-#import numpy as np
 
 def __main__():
     print("Welcome to ZipRide")
