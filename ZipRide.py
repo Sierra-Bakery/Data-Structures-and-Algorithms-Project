@@ -2,5 +2,11 @@
 # This is the main file for the ZipRide Dispatch System.
 # Made by Dylan Baker 22368201
 
+import graph
+g = graph.Graph()
+cont = "Y"
 
-print("Welcome to the ZipRide Dispatch System!")
+while cont == "Y":
+    print("Welcome to the ZipRide Dispatch System!")
+    graph.menu(g)
+    cont = input("Would you like to continue? (Y/N): ").upper()
