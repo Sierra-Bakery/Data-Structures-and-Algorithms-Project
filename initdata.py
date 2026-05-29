@@ -40,11 +40,6 @@ EDGE_DATA = [
 ]
 
 def populateGraph(g):
-    """
-    Populates the given Graph instance with all hardcoded nodes and edges.
-    Vertices are automatically derived from the edge data so there is no
-    duplicate node list to maintain.
-    """
     try:
         # add every unique vertex found in the edge data
         for src, dst, _ in EDGE_DATA:

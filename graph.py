@@ -1,5 +1,6 @@
 import linklists
 import numpy as np
+import os
 
 # EdgeNode stores a neighbour vertex AND the integer weight of the edge
 class EdgeNode():
@@ -78,7 +79,7 @@ class Graph():
         except Exception as e:
             raise Exception(f"Error getting vertex count: {e}")
 
-    def _getLabelsArray(self):
+    def getLabelArray(self):
         """Returns a numpy array of all vertex labels (dtype object for strings)."""
         n = self.getVertexCount()
         labels = np.empty(n, dtype=object)
@@ -235,23 +236,34 @@ class Graph():
         try:
             if self.vertices.isempty():
                 raise Exception("Graph is empty")
-            labels = self._getLabelsArray()
+            labels = self.getLabelArray()
             n = len(labels)
+
+            # find longest label for consistent padding
+            colWidth = max(len(str(lbl)) for lbl in labels) + 2
+            
             # build weight matrix using numpy
             matrix = np.zeros((n, n), dtype=int)
             for i in range(n):
                 for j in range(n):
                     if self.isAdjacent(labels[i], labels[j]):
                         matrix[i][j] = self.getEdgeWeight(labels[i], labels[j])
+
+
             print("\n=== Graph Adjacency Matrix (weights) ===")
-            header = "        " + "".join(f"{str(lbl):>8}" for lbl in labels)
+
+            # header row: blank pad + each label padded to colWidth
+            header = " " * (colWidth + 2) + "".join(f"{str(lbl):>{colWidth}}" for lbl in labels)
             print(header)
+
+            # each data row: label padded to colWidth, then values padded to colWidth
             for i in range(n):
-                row_str = f"{str(labels[i]):>8} ["
+                row_str = f"{str(labels[i]):>{colWidth}} ["
                 for j in range(n):
-                    row_str += f"{matrix[i][j]:>7} "
-                row_str += "]"
+                    row_str += f"{matrix[i][j]:>{colWidth}}"
+                row_str += " ]"
                 print(row_str)
+
         except Exception as e:
             raise Exception(f"Error displaying matrix: {e}")
 
@@ -270,7 +282,7 @@ class Graph():
                 raise Exception("Source vertex not found")
 
             n = self.getVertexCount()
-            labels = self._getLabelsArray()
+            labels = self.getLabelArray()
 
             # numpy arrays for level tracking (-1 = unvisited)
             levelArr = np.full(n, -1, dtype=int)
@@ -338,7 +350,7 @@ class Graph():
                 raise Exception("Source vertex not found")
 
             n = self.getVertexCount()
-            labels = self._getLabelsArray()
+            labels = self.getLabelArray()
 
             # numpy arrays: parent index (-1 = no parent), visited flags
             parentArr = np.full(n, -1, dtype=int)
@@ -446,7 +458,7 @@ class Graph():
                 raise Exception("Destination vertex not found")
 
             n = self.getVertexCount()
-            labels = self._getLabelsArray()
+            labels = self.getLabelArray()
             srcIdx = self._labelIndex(labels, sourceLabel)
             dstIdx = self._labelIndex(labels, destinationLabel)
 
@@ -550,6 +562,7 @@ def menu(g):
             continue
 
         if option == 1:
+            os.system('cls' if os.name == 'nt' else 'clear') # clears screen if with win or linux/mac terminal command
             label = input("Enter vertex label: ")
             try:
                 g.addVertex(label)
@@ -558,6 +571,7 @@ def menu(g):
                 print(f"Error: {e}")
 
         elif option == 2:
+            os.system('cls' if os.name == 'nt' else 'clear') # clears screen if with win or linux/mac terminal command
             label = input("Enter vertex label to delete: ")
             try:
                 g.deleteVertex(label)
@@ -566,6 +580,7 @@ def menu(g):
                 print(f"Error: {e}")
 
         elif option == 3:
+            os.system('cls' if os.name == 'nt' else 'clear') # clears screen if with win or linux/mac terminal command
             label1 = input("Enter first vertex label: ")
             label2 = input("Enter second vertex label: ")
             try:
@@ -578,6 +593,7 @@ def menu(g):
                 print(f"Error: {e}")
 
         elif option == 4:
+            os.system('cls' if os.name == 'nt' else 'clear') # clears screen if with win or linux/mac terminal command
             label1 = input("Enter first vertex label: ")
             label2 = input("Enter second vertex label: ")
             try:
@@ -587,18 +603,21 @@ def menu(g):
                 print(f"Error: {e}")
 
         elif option == 5:
+            os.system('cls' if os.name == 'nt' else 'clear') # clears screen if with win or linux/mac terminal command
             try:
                 g.displayAsList()
             except Exception as e:
                 print(f"Error: {e}")
 
         elif option == 6:
+            os.system('cls' if os.name == 'nt' else 'clear') # clears screen if with win or linux/mac terminal command
             try:
                 g.displayAsMatrix()
             except Exception as e:
                 print(f"Error: {e}")
 
         elif option == 7:
+            os.system('cls' if os.name == 'nt' else 'clear') # clears screen if with win or linux/mac terminal command
             source = input("Enter source location: ")
             try:
                 g.breadthFirstSearch(source)
@@ -606,6 +625,7 @@ def menu(g):
                 print(f"Error: {e}")
 
         elif option == 8:
+            os.system('cls' if os.name == 'nt' else 'clear') # clears screen if with win or linux/mac terminal command
             source = input("Enter source location: ")
             try:
                 g.depthFirstSearch(source)
@@ -613,6 +633,7 @@ def menu(g):
                 print(f"Error: {e}")
 
         elif option == 9:
+            os.system('cls' if os.name == 'nt' else 'clear') # clears screen if with win or linux/mac terminal command
             source = input("Enter source location: ")
             destination = input("Enter destination location: ")
             try:
@@ -621,6 +642,7 @@ def menu(g):
                 print(f"Error: {e}")
 
         elif option == 10:
+            os.system('cls' if os.name == 'nt' else 'clear') # clears screen if with win or linux/mac terminal command
             print("Goodbye!")
 
         else:
