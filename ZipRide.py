@@ -4,13 +4,24 @@
 
 import graph
 import initdata
-g = graph.Graph()
+import hash
+import heap
+
 cont = "Y"
 
-# Populate the graph with hardcoded data
+# Initialize the graph and populate it with hardcoded data
+g = graph.Graph()
 initdata.populateGraph(g)
+# Initialize the hash tables and populate them with hardcoded data
+passengerTable = hash.HashTable(20)
+driverTable    = hash.HashTable(20)
+initdata.populateRecords(passengerTable, driverTable)
+# Initialize the scheduler with the graph and hash tables
+scheduler = heap.ZipRideScheduler(g, passengerTable, driverTable)
 
 while cont == "Y":
     print("Welcome to the ZipRide Dispatch System!")
     graph.menu(g)
+    hash.menu(passengerTable, driverTable)
+    heap.menu(scheduler)
     cont = input("Would you like to continue? (Y/N): ").upper()
