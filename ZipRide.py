@@ -3,8 +3,12 @@
 # Made by Dylan Baker 22368201
 
 import graph
+import initdata
 g = graph.Graph()
 cont = "Y"
+
+# Populate the graph with hardcoded data
+initdata.populateGraph(g)
 
 while cont == "Y":
     print("Welcome to the ZipRide Dispatch System!")
