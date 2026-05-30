@@ -6,6 +6,7 @@ import graph
 import initdata
 import hash
 import heap
+import sort
 
 cont = "Y"
 
@@ -24,4 +25,5 @@ while cont == "Y":
     graph.menu(g)
     hash.menu(passengerTable, driverTable)
     heap.menu(scheduler)
+    sort.menu(g, passengerTable, driverTable)
     cont = input("Would you like to continue? (Y/N): ").upper()
