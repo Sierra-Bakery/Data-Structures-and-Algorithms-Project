@@ -1,6 +1,9 @@
 import numpy as np
 import linklists
 
+# WARNING: THIS FILE CONTAINS CODE FROM PAST WORKSHOPS
+# From Workshop 7: Hash Tables
+
 NEVER_USED   =  0 # slot has never held a record (search can stop at this marker)
 USED         =  1 # slot currently holds a record
 OLD_USED = -1 # tombstone marker for deleted slots (allows probing to continue)

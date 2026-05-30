@@ -8,12 +8,13 @@ class EdgeNode():
         self.vertex = vertex
         self.weight = weight  # integer driving time
 
+# GraphVertex stores the label, value, and linked list of EdgeNodes for a vertex
 class GraphVertex():
     def __init__(self, label, value):
         self.label = label
         self.value = value
         self.links = linklists.LinkedList()  # stores EdgeNode objects
-        self.visited = False
+        self.visited = False 
 
     def getLabel(self):
         return self.label
@@ -44,63 +45,66 @@ class Graph():
     def __init__(self):
         self.vertices = linklists.LinkedList()
 
-    # ------------------------------------------------------------------ helpers
 
     def getVertex(self, label):
+        # traverses linked list to find vertex with matching label. returns vertex object if found, raises exception if not
         try:
-            cur = self.vertices.head
-            while cur is not None:
-                if cur.value.label == label:
-                    return cur.value
-                cur = cur.next
-            raise Exception("Vertex not found")
-        except Exception as e:
+            current = self.vertices.head # traverse linked list to find vertex with matching label
+            while current is not None:
+                if current.value.label == label: # if found, return the vertex object
+                    return current.value
+                current = current.next 
+            raise Exception("Vertex not found") 
+        except Exception as e: # if not found after traversing whole list, raise exception
             raise Exception(f"Error getting vertex: {e}")
 
+
     def hasVertex(self, label):
+        # traverses linked list to find vertex with matching label. returns True if found, False if not
         try:
-            cur = self.vertices.head
-            while cur is not None:
-                if cur.value.label == label:
+            current = self.vertices.head # traverse linked list to find vertex with matching label
+            while current is not None:
+                if current.value.label == label: # if found, return True
                     return True
-                cur = cur.next
+                current = current.next
             return False
-        except Exception as e:
+        except Exception as e: # if not found after traversing whole list, raise exception
             raise Exception(f"Error checking vertex: {e}")
 
     def getVertexCount(self):
+        # traverses linked list of vertices and counts them; returns count
         try:
             count = 0
-            cur = self.vertices.head
-            while cur is not None:
+            current = self.vertices.head
+            while current is not None:
                 count += 1
-                cur = cur.next
+                current = current.next
             return count
         except Exception as e:
             raise Exception(f"Error getting vertex count: {e}")
 
     def getLabelArray(self):
-        """Returns a numpy array of all vertex labels (dtype object for strings)."""
+        #Returns a numpy array of all vertex labels
         n = self.getVertexCount()
         labels = np.empty(n, dtype=object)
-        cur = self.vertices.head
+        current = self.vertices.head
         i = 0
-        while cur is not None:
-            labels[i] = cur.value.label
+        while current is not None: # traverse linked list and fill numpy array with vertex labels
+            labels[i] = current.value.label
             i += 1
-            cur = cur.next
+            current = current.next
         return labels
 
     def _labelIndex(self, labels, label):
-        """Returns the index of label in a numpy labels array, or -1 if not found."""
+        # Returns the index of label in a numpy labels array, or -1 if not found.
         for i in range(len(labels)):
             if labels[i] == label:
                 return i
         return -1
 
-    # ------------------------------------------------------------------ mutators
 
     def addVertex(self, label, value=None):
+        # Adds a new vertex to the graph. Raises exception if vertex with same label already exists.
         try:
             if self.hasVertex(label):
                 raise Exception("Vertex already exists")
@@ -110,7 +114,7 @@ class Graph():
             raise Exception(f"Error adding vertex: {e}")
 
     def addEdge(self, label1, label2, weight=1):
-        """Adds a weighted undirected edge between label1 and label2."""
+        #Adds a weighted undirected edge between label1 and label2.
         try:
             vertex1 = self.getVertex(label1)
             vertex2 = self.getVertex(label2)
@@ -120,49 +124,51 @@ class Graph():
             raise Exception(f"Error adding edge: {e}")
 
     def deleteVertex(self, label):
+        # Removes vertex with given label and all edges referencing it. Raises exception if vertex not found.
         try:
             if not self.hasVertex(label):
                 raise Exception("Vertex not found")
             # remove all edges referencing this vertex first
-            temp = self.vertices.head
-            while temp is not None:
-                if temp.value.label != label:
-                    self._removeEdgeFromLinks(temp.value, label)
-                temp = temp.next
+            temporary = self.vertices.head
+            while temporary is not None:
+                if temporary.value.label != label:
+                    self._removeEdgeFromLinks(temporary.value, label)
+                temporary = temporary.next
             # remove the vertex node itself
             if self.vertices.head.value.label == label:
                 self.vertices.remove_first()
             else:
-                prev = self.vertices.head
-                cur = self.vertices.head.next
+                previous = self.vertices.head
+                current = self.vertices.head.next
                 found = False
-                while cur is not None and not found:
-                    if cur.value.label == label:
-                        prev.next = cur.next
+                while current is not None and not found: # traverse linked list of vertices until you find the one to delete
+                    if current.value.label == label:
+                        previous.next = current.next
                         found = True
-                    else:
-                        prev = cur
-                        cur = cur.next
+                    else: # if not found, keep traversing
+                        previous = current
+                        current = current.next
         except Exception as e:
             raise Exception(f"Error deleting vertex: {e}")
 
     def _removeEdgeFromLinks(self, vertex, targetLabel):
-        """Removes the EdgeNode pointing to targetLabel from vertex.links."""
-        prev = None
-        temp = vertex.links.head
+        # Removes the EdgeNode pointing to targetLabel from vertex.links linked list
+        previous = None
+        temporary = vertex.links.head
         found = False
-        while temp is not None and not found:
-            if temp.value.vertex.label == targetLabel:
-                if prev is None:
-                    vertex.links.head = temp.next
+        while temporary is not None and not found: # traverse linked list of edges until find the one pointing to targetLabel
+            if temporary.value.vertex.label == targetLabel: # if found, remove it by updating previous.next to skip temporary
+                if previous is None:
+                    vertex.links.head = temporary.next
                 else:
-                    prev.next = temp.next
+                    previous.next = temporary.next
                 found = True
-            else:
-                prev = temp
-                temp = temp.next
+            else: # if not found, keep traversing
+                previous = temporary
+                temporary = temporary.next
 
     def deleteEdge(self, label1, label2):
+        # Removes the undirected edge between label1 and label2. Raises exception if either vertex not found
         try:
             if not self.hasVertex(label1) or not self.hasVertex(label2):
                 raise Exception("Vertex not found")
@@ -171,89 +177,99 @@ class Graph():
         except Exception as e:
             raise Exception(f"Error deleting edge: {e}")
 
-    # ------------------------------------------------------------------ display
 
     def getEdgeCount(self):
+        # traverses vertices and counts all edges by adding the lengths of their lists
+        # divides count by 2 for undirected edges also for edges stored twice
         try:
             count = 0
-            cur = self.vertices.head
-            while cur is not None:
-                inner = cur.value.links.head
+            current = self.vertices.head
+            while current is not None:
+                inner = current.value.links.head # traverse linked list of edges for this vertex and count them
                 while inner is not None:
                     count += 1
                     inner = inner.next
-                cur = cur.next
-            return count // 2
+                current = current.next
+                count = count // 2
+            return count
         except Exception as e:
             raise Exception(f"Error getting edge count: {e}")
 
     def isAdjacent(self, label1, label2):
+        # Returns True if there is an edge between label1 and label2, and False if not
         try:
             vertex = self.getVertex(label1)
-            temp = vertex.links.head
-            while temp is not None:
-                if temp.value.vertex.label == label2:
+            temporary = vertex.links.head
+            while temporary is not None:
+                if temporary.value.vertex.label == label2:
                     return True
-                temp = temp.next
+                temporary = temporary.next
             return False
-        except Exception as e:
+        except Exception as e: # Raises exception if either vertex not found
             raise Exception(f"Error checking adjacency: {e}")
 
     def getEdgeWeight(self, label1, label2):
-        """Returns the weight of the edge between label1 and label2, or 0."""
+        # Returns the weight of the edge between label1 and label2 if it exists, otherwise 0
         try:
             vertex = self.getVertex(label1)
-            temp = vertex.links.head
-            while temp is not None:
-                if temp.value.vertex.label == label2:
-                    return temp.value.weight
-                temp = temp.next
+            temporary = vertex.links.head
+            while temporary is not None:
+                if temporary.value.vertex.label == label2:
+                    return temporary.value.weight
+                temporary = temporary.next
             return 0
-        except Exception as e:
+        except Exception as e: # Raises exception if either vertex not found
             raise Exception(f"Error getting edge weight: {e}")
 
     def displayAsList(self):
-        """Displays graph as adjacency list showing edge weights."""
+        # WARNING - THIS METHOD CONTAINS CODE FROM PAST WORKSHOPS - Workshop 7: Graphs
+        # Displays graph as adjacency list showing edge weights
         try:
             if self.vertices.isempty():
                 raise Exception("Graph is empty")
             print("\n=== Graph Adjacency List ===")
-            temp = self.vertices.head
-            while temp is not None:
-                vertex = temp.value
+            temporary = self.vertices.head
+            while temporary is not None:
+                vertex = temporary.value
                 print(f"  {vertex.label} |", end="")
                 inner = vertex.links.head
                 while inner is not None:
-                    print(f" {inner.value.vertex.label}(w={inner.value.weight})", end="")
+                    print(f" {inner.value.vertex.label}(w={inner.value.weight})", end="") # print neighbour label and weight
                     inner = inner.next
                 print()
-                temp = temp.next
-        except Exception as e:
+                temporary = temporary.next
+        except Exception as e: # Raises exception if graph is empty or error occurs during traversal
             raise Exception(f"Error displaying list: {e}")
 
     def displayAsMatrix(self):
-        """Displays graph as adjacency matrix showing weights (0 = no edge)."""
+        # WARNING - THIS METHOD CONTAINS CODE FROM PAST WORKSHOPS - Workshop 7: Graphs
+        # Displays graph as adjacency matrix showing weights, 0 if no edge exits
         try:
             if self.vertices.isempty():
                 raise Exception("Graph is empty")
             labels = self.getLabelArray()
             n = len(labels)
 
-            # find longest label for consistent padding
+            # Find longest label for consistent padding
             colWidth = max(len(str(lbl)) for lbl in labels) + 2
             
-            # build weight matrix using numpy
+            # Build weight matrix using numpy
             matrix = np.zeros((n, n), dtype=int)
             for i in range(n):
                 for j in range(n):
                     if self.isAdjacent(labels[i], labels[j]):
-                        matrix[i][j] = self.getEdgeWeight(labels[i], labels[j])
+                        matrix[i][j] = self.getEdgeWeight(labels[i], labels[j]) # fill weight if edge exists, otherwise 0 remains
 
 
             print("\n=== Graph Adjacency Matrix (weights) ===")
 
             # header row: blank pad + each label padded to colWidth
-            header = " " * (colWidth + 2) + "".join(f"{str(lbl):>{colWidth}}" for lbl in labels)
+            leadingSpace = " " * (colWidth + 2)
+            headerParts = np.empty(len(labels), dtype=object)
+            for i in range(len(labels)):
+                headerParts[i] = f"{str(labels[i]):>{colWidth}}" # pad each label to colWidth
+
+            header = leadingSpace + "".join(headerParts)
             print(header)
 
             # each data row: label padded to colWidth, then values padded to colWidth
@@ -267,14 +283,11 @@ class Graph():
         except Exception as e:
             raise Exception(f"Error displaying matrix: {e}")
 
-    # ------------------------------------------------------------------ BFS
 
     def breadthFirstSearch(self, sourceLabel):
-        """
-        Input : source location label
-        Output: all reachable locations grouped by level (Level 0, Level 1, ...)
-        Uses numpy arrays; no break; no Python lists.
-        """
+        # WARNING - THIS METHOD CONTAINS CODE FROM PAST WORKSHOPS - Workshop 7: Graphs
+        # Performs a breadth first search starting from the source vertex
+        #   using a queue to explore neighbors level by level
         try:
             if self.vertices.isempty():
                 raise Exception("Graph is empty")
@@ -284,28 +297,26 @@ class Graph():
             n = self.getVertexCount()
             labels = self.getLabelArray()
 
-            # numpy arrays for level tracking (-1 = unvisited)
+            # store level of each vertex in numpy array -1 means not reached yet and at end unreachable
             levelArr = np.full(n, -1, dtype=int)
             srcIdx = self._labelIndex(labels, sourceLabel)
             levelArr[srcIdx] = 0
-
             queue = linklists.LinkedList()
+            temporary = self.vertices.head
+            while temporary is not None: # clear visited tagging on vertex objects before starting the search
+                temporary.value.clearVisited()
+                temporary = temporary.next
 
-            # clear visited flags
-            temp = self.vertices.head
-            while temp is not None:
-                temp.value.clearVisited()
-                temp = temp.next
-
-            v = self.getVertex(sourceLabel)
+            v = self.getVertex(sourceLabel) # mark source vertex as visited and start the search
             v.setVisited()
             queue.insert_last(v)
 
+            # loop until queue is empty and at each step remove first vertex and add its unvisited neighbours to the end of the queue
             while not queue.isempty():
                 v = queue.remove_first()
                 vIdx = self._labelIndex(labels, v.label)
                 inner = v.links.head
-                while inner is not None:
+                while inner is not None: # for each neighbour w of v, if w is unvisited, mark it visited, set its level to be one more than v's level, and add it to the end of the queue
                     w = inner.value.vertex
                     wIdx = self._labelIndex(labels, w.label)
                     if not w.getVisited():
@@ -313,6 +324,9 @@ class Graph():
                         levelArr[wIdx] = levelArr[vIdx] + 1
                         queue.insert_last(w)
                     inner = inner.next
+                    ########################################################################################################
+                    
+                    ########################################################################################################
 
             # print grouped by level
             maxLevel = int(np.max(levelArr[levelArr >= 0]))
@@ -338,11 +352,11 @@ class Graph():
     # ------------------------------------------------------------------ DFS
 
     def depthFirstSearch(self, sourceLabel):
-        """
-        Input : source location label
-        Output: whether graph contains a cycle; if found, shows locations involved.
-        Uses numpy arrays; no break; no Python lists.
-        """
+        #
+        #Input : source location label
+        #Output: whether graph contains a cycle; if found, shows locations involved.
+        #Uses numpy arrays; no break; no Python lists.
+        #
         try:
             if self.vertices.isempty():
                 raise Exception("Graph is empty")
@@ -364,10 +378,10 @@ class Graph():
             stack = linklists.LinkedList()
 
             # clear visited flags on vertex objects
-            temp = self.vertices.head
-            while temp is not None:
-                temp.value.clearVisited()
-                temp = temp.next
+            temporary = self.vertices.head
+            while temporary is not None:
+                temporary.value.clearVisited()
+                temporary = temporary.next
 
             v = self.getVertex(sourceLabel)
             srcIdx = self._labelIndex(labels, sourceLabel)
@@ -392,23 +406,23 @@ class Graph():
                             cycleFound = True
                             found = True
                             # trace cycle by walking parent chain
-                            cur = v
+                            current = v
                             cycleLen = 0
                             cycleArr[cycleLen] = neighbour.label
                             cycleLen += 1
                             stillTracing = True
                             while stillTracing:
-                                cycleArr[cycleLen] = cur.label
+                                cycleArr[cycleLen] = current.label
                                 cycleLen += 1
-                                if cur.label == neighbour.label:
+                                if current.label == neighbour.label:
                                     stillTracing = False
                                 else:
-                                    curIdx = self._labelIndex(labels, cur.label)
+                                    curIdx = self._labelIndex(labels, current.label)
                                     pIdx = parentArr[curIdx]
                                     if pIdx == -1:
                                         stillTracing = False
                                     else:
-                                        cur = self.getVertex(labels[pIdx])
+                                        current = self.getVertex(labels[pIdx])
                             # reverse the filled portion
                             cycleSlice = cycleArr[:cycleLen].copy()
                             cycleArr[:cycleLen] = cycleSlice[::-1]
@@ -440,15 +454,15 @@ class Graph():
         except Exception as e:
             raise Exception(f"Error in depth first search: {e}")
 
-    # ------------------------------------------------------------------ Dijkstra
 
     def dijkstra(self, sourceLabel, destinationLabel):
-        """
-        Input : source location label, destination location label
-        Output: shortest driving time and path from source to destination.
-        Uses numpy arrays; no break; no Python lists.
-        Reference: Cormen et al. (2022)
-        """
+        #
+        #Input : source location label, destination location label
+        #Output: shortest driving time and path from source to destination.
+        #Uses numpy arrays; no break; no Python lists.
+        #Reference: Cormen, T. H., Leiserson, C. E., Rivest, R. L., & Stein, C. (2022).
+        #           Introduction to algorithms. MIT press.
+        #
         try:
             if self.vertices.isempty():
                 raise Exception("Graph is empty")
@@ -507,18 +521,18 @@ class Graph():
             reachable = dist[dstIdx] != np.inf
 
             if reachable:
-                cur = dstIdx
+                current = dstIdx
                 still = True
                 while still:
-                    pathArr[pathLen] = labels[cur]
+                    pathArr[pathLen] = labels[current]
                     pathLen += 1
-                    if cur == srcIdx:
+                    if current == srcIdx:
                         still = False
                     else:
-                        if prevArr[cur] == -1:
+                        if prevArr[current] == -1:
                             still = False
                         else:
-                            cur = prevArr[cur]
+                            current = prevArr[current]
                 # reverse filled portion
                 pathSlice = pathArr[:pathLen].copy()
                 pathArr[:pathLen] = pathSlice[::-1]
@@ -536,8 +550,6 @@ class Graph():
         except Exception as e:
             raise Exception(f"Error in Dijkstra's algorithm: {e}")
 
-
-# ------------------------------------------------------------------ menu
 
 def menu(g):
     option = 0
