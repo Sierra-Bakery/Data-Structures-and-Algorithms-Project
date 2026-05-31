@@ -54,7 +54,9 @@ class Graph():
                 if current.value.label == label: # if found, return the vertex object
                     return current.value
                 current = current.next 
+                
             raise Exception("Vertex not found") 
+        
         except Exception as e: # if not found after traversing whole list, raise exception
             raise Exception(f"Error getting vertex: {e}")
 
@@ -63,11 +65,13 @@ class Graph():
         # traverses linked list to find vertex with matching label. returns True if found, False if not
         try:
             current = self.vertices.head # traverse linked list to find vertex with matching label
+            
             while current is not None:
                 if current.value.label == label: # if found, return True
                     return True
                 current = current.next
             return False
+        
         except Exception as e: # if not found after traversing whole list, raise exception
             raise Exception(f"Error checking vertex: {e}")
 
@@ -76,10 +80,13 @@ class Graph():
         try:
             count = 0
             current = self.vertices.head
+            
             while current is not None:
                 count += 1
                 current = current.next
+                
             return count
+        
         except Exception as e:
             raise Exception(f"Error getting vertex count: {e}")
 
@@ -89,6 +96,7 @@ class Graph():
         labels = np.empty(n, dtype=object)
         current = self.vertices.head
         i = 0
+        
         while current is not None: # traverse linked list and fill numpy array with vertex labels
             labels[i] = current.value.label
             i += 1
@@ -108,8 +116,10 @@ class Graph():
         try:
             if self.hasVertex(label):
                 raise Exception("Vertex already exists")
+            
             new_vertex = GraphVertex(label, value)
             self.vertices.insert_last(new_vertex)
+            
         except Exception as e:
             raise Exception(f"Error adding vertex: {e}")
 
@@ -120,6 +130,7 @@ class Graph():
             vertex2 = self.getVertex(label2)
             vertex1.addEdge(vertex2, weight)
             vertex2.addEdge(vertex1, weight)
+            
         except Exception as e:
             raise Exception(f"Error adding edge: {e}")
 
@@ -128,23 +139,29 @@ class Graph():
         try:
             if not self.hasVertex(label):
                 raise Exception("Vertex not found")
+            
             # remove all edges referencing this vertex first
             temporary = self.vertices.head
+            
             while temporary is not None:
                 if temporary.value.label != label:
                     self._removeEdgeFromLinks(temporary.value, label)
                 temporary = temporary.next
+                
             # remove the vertex node itself
             if self.vertices.head.value.label == label:
                 self.vertices.remove_first()
+                
             else:
                 previous = self.vertices.head
                 current = self.vertices.head.next
                 found = False
+                
                 while current is not None and not found: # traverse linked list of vertices until you find the one to delete
                     if current.value.label == label:
                         previous.next = current.next
                         found = True
+                        
                     else: # if not found, keep traversing
                         previous = current
                         current = current.next
@@ -156,13 +173,16 @@ class Graph():
         previous = None
         temporary = vertex.links.head
         found = False
+        
         while temporary is not None and not found: # traverse linked list of edges until find the one pointing to targetLabel
             if temporary.value.vertex.label == targetLabel: # if found, remove it by updating previous.next to skip temporary
                 if previous is None:
                     vertex.links.head = temporary.next
+                    
                 else:
                     previous.next = temporary.next
                 found = True
+                
             else: # if not found, keep traversing
                 previous = temporary
                 temporary = temporary.next
@@ -174,6 +194,7 @@ class Graph():
                 raise Exception("Vertex not found")
             self._removeEdgeFromLinks(self.getVertex(label1), label2)
             self._removeEdgeFromLinks(self.getVertex(label2), label1)
+            
         except Exception as e:
             raise Exception(f"Error deleting edge: {e}")
 
@@ -184,14 +205,17 @@ class Graph():
         try:
             count = 0
             current = self.vertices.head
+            
             while current is not None:
                 inner = current.value.links.head # traverse linked list of edges for this vertex and count them
+                
                 while inner is not None:
                     count += 1
                     inner = inner.next
                 current = current.next
                 count = count // 2
             return count
+        
         except Exception as e:
             raise Exception(f"Error getting edge count: {e}")
 
@@ -200,11 +224,14 @@ class Graph():
         try:
             vertex = self.getVertex(label1)
             temporary = vertex.links.head
+            
             while temporary is not None:
                 if temporary.value.vertex.label == label2:
                     return True
+                
                 temporary = temporary.next
             return False
+        
         except Exception as e: # Raises exception if either vertex not found
             raise Exception(f"Error checking adjacency: {e}")
 
@@ -213,11 +240,14 @@ class Graph():
         try:
             vertex = self.getVertex(label1)
             temporary = vertex.links.head
+            
             while temporary is not None:
                 if temporary.value.vertex.label == label2:
                     return temporary.value.weight
+                
                 temporary = temporary.next
             return 0
+        
         except Exception as e: # Raises exception if either vertex not found
             raise Exception(f"Error getting edge weight: {e}")
 
@@ -227,17 +257,21 @@ class Graph():
         try:
             if self.vertices.isempty():
                 raise Exception("Graph is empty")
+            
             print("\n=== Graph Adjacency List ===")
             temporary = self.vertices.head
+            
             while temporary is not None:
                 vertex = temporary.value
                 print(f"  {vertex.label} |", end="")
                 inner = vertex.links.head
+                
                 while inner is not None:
                     print(f" {inner.value.vertex.label}(w={inner.value.weight})", end="") # print neighbour label and weight
                     inner = inner.next
                 print()
                 temporary = temporary.next
+                
         except Exception as e: # Raises exception if graph is empty or error occurs during traversal
             raise Exception(f"Error displaying list: {e}")
 
@@ -247,6 +281,7 @@ class Graph():
         try:
             if self.vertices.isempty():
                 raise Exception("Graph is empty")
+            
             labels = self.getLabelArray()
             n = len(labels)
 
@@ -255,6 +290,7 @@ class Graph():
             
             # Build weight matrix using numpy
             matrix = np.zeros((n, n), dtype=int)
+            
             for i in range(n):
                 for j in range(n):
                     if self.isAdjacent(labels[i], labels[j]):
@@ -266,6 +302,7 @@ class Graph():
             # header row: blank pad + each label padded to colWidth
             leadingSpace = " " * (colWidth + 2)
             headerParts = np.empty(len(labels), dtype=object)
+            
             for i in range(len(labels)):
                 headerParts[i] = f"{str(labels[i]):>{colWidth}}" # pad each label to colWidth
 
@@ -275,8 +312,10 @@ class Graph():
             # each data row: label padded to colWidth, then values padded to colWidth
             for i in range(n):
                 row_str = f"{str(labels[i]):>{colWidth}} ["
+                
                 for j in range(n):
                     row_str += f"{matrix[i][j]:>{colWidth}}"
+                    
                 row_str += " ]"
                 print(row_str)
 
@@ -291,6 +330,7 @@ class Graph():
         try:
             if self.vertices.isempty():
                 raise Exception("Graph is empty")
+            
             if not self.hasVertex(sourceLabel):
                 raise Exception("Source vertex not found")
 
@@ -299,10 +339,11 @@ class Graph():
 
             # store level of each vertex in numpy array -1 means not reached yet and at end unreachable
             levelArr = np.full(n, -1, dtype=int)
-            srcIdx = self._labelIndex(labels, sourceLabel)
-            levelArr[srcIdx] = 0
+            sourceIndex = self._labelIndex(labels, sourceLabel)
+            levelArr[sourceIndex] = 0
             queue = linklists.LinkedList()
             temporary = self.vertices.head
+            
             while temporary is not None: # clear visited tagging on vertex objects before starting the search
                 temporary.value.clearVisited()
                 temporary = temporary.next
@@ -316,31 +357,35 @@ class Graph():
                 v = queue.remove_first()
                 vIdx = self._labelIndex(labels, v.label)
                 inner = v.links.head
+                
                 while inner is not None: # for each neighbour w of v, if w is unvisited, mark it visited, set its level to be one more than v's level, and add it to the end of the queue
                     w = inner.value.vertex
                     wIdx = self._labelIndex(labels, w.label)
+                    
                     if not w.getVisited():
                         w.setVisited()
                         levelArr[wIdx] = levelArr[vIdx] + 1
                         queue.insert_last(w)
                     inner = inner.next
-                    ########################################################################################################
-                    
-                    ########################################################################################################
+
 
             # print grouped by level
             maxLevel = int(np.max(levelArr[levelArr >= 0]))
             print(f"\nBFS from source: {sourceLabel}")
             print("  Reachable locations by level:")
-            for lvl in range(maxLevel + 1):
+            
+            
+            for lvl in range(maxLevel + 1): # for each level from 0 to maxLevel, find the nuimbers of vertices at that level and print their labels
                 idxs = np.where(levelArr == lvl)[0]
                 locationNames = np.empty(len(idxs), dtype=object)
-                for i in range(len(idxs)):
+                
+                for i in range(len(idxs)): # fill locationNames array with labels of vertices at this level using the idxs to index into labels array
                     locationNames[i] = labels[idxs[i]]
                 print(f"    Level {lvl}: {', '.join(locationNames)}")
 
             # report unreachable nodes if any
             unreachable = labels[levelArr == -1]
+            
             if len(unreachable) > 0:
                 print(f"  Unreachable locations: {', '.join(unreachable)}")
 
@@ -349,57 +394,69 @@ class Graph():
         except Exception as e:
             raise Exception(f"Error in breadth first search: {e}")
 
-    # ------------------------------------------------------------------ DFS
 
     def depthFirstSearch(self, sourceLabel):
-        #
-        #Input : source location label
-        #Output: whether graph contains a cycle; if found, shows locations involved.
-        #Uses numpy arrays; no break; no Python lists.
-        #
+        # WARNING - THIS METHOD CONTAINS CODE FROM PAST WORKSHOPS - Workshop 7: Graphs
+        # Performs a depth first search starting from the source vertex
+        #   using a stack to explore neighbors
+        
         try:
             if self.vertices.isempty():
                 raise Exception("Graph is empty")
+            
             if not self.hasVertex(sourceLabel):
                 raise Exception("Source vertex not found")
 
             n = self.getVertexCount()
             labels = self.getLabelArray()
 
-            # numpy arrays: parent index (-1 = no parent), visited flags
+            # numpy arrays: parent index -1 = no parent,  othar is visited flags
             parentArr = np.full(n, -1, dtype=int)
             visitedArr = np.zeros(n, dtype=bool)
 
-            # numpy array to store cycle path (max possible length = n)
+            # numpy array to store cycle path with max  length = n
             cycleArr = np.empty(n, dtype=object)
             cycleLen = 0
             cycleFound = False
 
-            stack = linklists.LinkedList()
+            stack = linklists.LinkedList() # stack for DFS, store vertex objects in stack
 
             # clear visited flags on vertex objects
             temporary = self.vertices.head
-            while temporary is not None:
+            
+            while temporary is not None: # traverse linked list of vertices and clear visited flags before starting the search
                 temporary.value.clearVisited()
                 temporary = temporary.next
 
+            # initiate DFS by marking source vertex visited, pushing it to stack, and setting its parent to -1 in parentArr
             v = self.getVertex(sourceLabel)
-            srcIdx = self._labelIndex(labels, sourceLabel)
+            sourceIndex = self._labelIndex(labels, sourceLabel)
             v.setVisited()
-            visitedArr[srcIdx] = True
+            visitedArr[sourceIndex] = True
             stack.insert_last(v)
 
+            # loop until stack is empty or cycle found. at each step, 
+            # look for an unvisited neighbour w of the vertex v on top of the stack. 
+            # if found, mark w visited, set its parent to be v in parentArr, and push w to stack. 
+            # if no unvisited neighbour is found, pop v from stack. 
+            # if an already visited neighbour is found that is not the parent of v, then a cycle is detected. 
+            # trace back the cycle path using parentArr and store it in cycleArr.
+            
             while not stack.isempty() and not cycleFound:
                 inner = v.links.head
                 w = None
                 found = False
-                while inner is not None and not found:
+                
+                while inner is not None and not found: 
+                    # look for unvisited neighbour w of vertex v on top of stack by traversing linked list of edges for v
                     neighbour = inner.value.vertex
                     nIdx = self._labelIndex(labels, neighbour.label)
                     vIdx = self._labelIndex(labels, v.label)
+                    
                     if not visitedArr[nIdx]:
                         w = neighbour
                         found = True
+                        
                     else:
                         # visited neighbour that is not the direct parent = cycle
                         if parentArr[vIdx] != nIdx:
@@ -411,25 +468,33 @@ class Graph():
                             cycleArr[cycleLen] = neighbour.label
                             cycleLen += 1
                             stillTracing = True
+                            
                             while stillTracing:
+                                # add current vertex to cycleArr and check if reached the neighbour that closed the cycle
                                 cycleArr[cycleLen] = current.label
                                 cycleLen += 1
                                 if current.label == neighbour.label:
                                     stillTracing = False
+                                    
                                 else:
+                                    # find parent of current vertex using parentArr until reach the neighbour that closed the cycle, filling cycleArr
                                     curIdx = self._labelIndex(labels, current.label)
                                     pIdx = parentArr[curIdx]
                                     if pIdx == -1:
                                         stillTracing = False
+                                        
                                     else:
                                         current = self.getVertex(labels[pIdx])
+                                        
                             # reverse the filled portion
-                            cycleSlice = cycleArr[:cycleLen].copy()
-                            cycleArr[:cycleLen] = cycleSlice[::-1]
+                            cycleSlice = cycleArr[:cycleLen].copy() # copy to temporary array before reversing to avoid overwriting during reverse
+                            cycleArr[:cycleLen] = cycleSlice[::-1] # reverse the filled portion of cycleArr to get correct order from neighbour that closed the cycle back to itself
+                            
                         else:
                             inner = inner.next
 
                 if not cycleFound:
+                    # if found an unvisited neighbour w, mark w visited and set its parent to be v in parentArr, and push w to stack
                     if w is not None:
                         wIdx = self._labelIndex(labels, w.label)
                         vIdx = self._labelIndex(labels, v.label)
@@ -438,14 +503,18 @@ class Graph():
                         visitedArr[wIdx] = True
                         stack.insert_last(w)
                         v = w
+                        
                     else:
                         v = stack.remove_last()
 
             print(f"\nDFS from source: {sourceLabel}")
+            
             if cycleFound:
+                # if a cycle is found, print the cycle path by joining the labels in cycleArr up to cycleLen
                 cyclePath = " -> ".join(str(cycleArr[i]) for i in range(cycleLen))
                 print(f"  Cycle detected!")
                 print(f"  Locations involved: {cyclePath}")
+                
             else:
                 print("  No cycle found in graph")
 
@@ -456,96 +525,115 @@ class Graph():
 
 
     def dijkstra(self, sourceLabel, destinationLabel):
-        #
-        #Input : source location label, destination location label
-        #Output: shortest driving time and path from source to destination.
-        #Uses numpy arrays; no break; no Python lists.
+        # WARNING - THIS METHOD CONTAINS CODE FROM PAST WORKSHOPS - Workshop 7: Graphs
+        # Performs Dijkstra's algorithm starting from the source vertex
+        #   to find the shortest path to the destination vertex
         #Reference: Cormen, T. H., Leiserson, C. E., Rivest, R. L., & Stein, C. (2022).
         #           Introduction to algorithms. MIT press.
         #
         try:
             if self.vertices.isempty():
                 raise Exception("Graph is empty")
+            
             if not self.hasVertex(sourceLabel):
                 raise Exception("Source vertex not found")
+            
             if not self.hasVertex(destinationLabel):
                 raise Exception("Destination vertex not found")
 
             n = self.getVertexCount()
             labels = self.getLabelArray()
-            srcIdx = self._labelIndex(labels, sourceLabel)
-            dstIdx = self._labelIndex(labels, destinationLabel)
+            sourceIndex = self._labelIndex(labels, sourceLabel)
+            destinationIndex = self._labelIndex(labels, destinationLabel)
 
-            # numpy arrays for distances and previous node indices
+            # distances and previous node indices
             dist = np.full(n, np.inf)
-            prevArr = np.full(n, -1, dtype=int)
+            previousArr = np.full(n, -1, dtype=int)
             visitedArr = np.zeros(n, dtype=bool)
 
-            dist[srcIdx] = 0
+            dist[sourceIndex] = 0 # distance to source is 0
 
             # process all vertices
             processedCount = 0
+            
             while processedCount < n:
                 # find unvisited vertex with smallest distance
                 u = -1
                 minDist = np.inf
+                
                 for i in range(n):
                     if not visitedArr[i] and dist[i] < minDist:
                         minDist = dist[i]
                         u = i
 
                 # no reachable unvisited vertex remains OR destination reached
-                done = (u == -1) or (dist[u] == np.inf) or (u == dstIdx)
+                done = (u == -1) or (dist[u] == np.inf) or (u == destinationIndex)
+                
                 if not done:
+                    # mark u visited and update distances to its unvisited neighbours w by checking if 
+                    # dist[u] + weight(u,w) < dist[w]
                     visitedArr[u] = True
                     processedCount += 1
 
                     vertex = self.getVertex(labels[u])
                     inner = vertex.links.head
                     while inner is not None:
+                        # for each neighbour
                         w = inner.value.vertex
                         weight = inner.value.weight
                         wIdx = self._labelIndex(labels, w.label)
+                        
                         if not visitedArr[wIdx]:
+                            # if dist[u] + weight < dist[wIdx], update dist[wIdx] and set previousArr[wIdx] to u
                             alt = dist[u] + weight
                             if alt < dist[wIdx]:
                                 dist[wIdx] = alt
-                                prevArr[wIdx] = u
+                                previousArr[wIdx] = u
                         inner = inner.next
+                        
                 else:
                     processedCount = n  # exit condition: set to n to stop loop
 
             # reconstruct path using numpy array
-            pathArr = np.empty(n, dtype=object)
-            pathLen = 0
-            reachable = dist[dstIdx] != np.inf
+            pathArray = np.empty(n, dtype=object)
+            pathLength = 0
+            reachable = dist[destinationIndex] != np.inf
 
             if reachable:
-                current = dstIdx
+                # if destination is reachable, reconstruct path by walking backwards 
+                # destination to source using previousArr and filling pathArray, then reverse the filled portion of pathArray
+                current = destinationIndex
                 still = True
+                
                 while still:
-                    pathArr[pathLen] = labels[current]
-                    pathLen += 1
-                    if current == srcIdx:
+                    pathArray[pathLength] = labels[current]
+                    pathLength += 1
+                    
+                    if current == sourceIndex:
                         still = False
+                        
                     else:
-                        if prevArr[current] == -1:
+                        if previousArr[current] == -1:
                             still = False
+                            
                         else:
-                            current = prevArr[current]
-                # reverse filled portion
-                pathSlice = pathArr[:pathLen].copy()
-                pathArr[:pathLen] = pathSlice[::-1]
+                            current = previousArr[current]
+                            
+                # reverse filled portion 
+                pathSlice = pathArray[:pathLength].copy() # copy to temporary array before reversing to avoid overwriting during reverse
+                pathArray[:pathLength] = pathSlice[::-1] # reverse the filled portion of pathArray to get correct order from source to destination
 
             print(f"\nDijkstra Shortest Path: {sourceLabel} -> {destinationLabel}")
             if not reachable:
                 print("  No path found between source and destination")
+                
             else:
-                pathStr = " -> ".join(str(pathArr[i]) for i in range(pathLen))
-                print(f"  Shortest driving time: {int(dist[dstIdx])} mins")
+                # if reachable, print the shortest driving time and the path by joining the labels in pathArray up to pathLength
+                pathStr = " -> ".join(str(pathArray[i]) for i in range(pathLength))
+                print(f"  Shortest driving time: {int(dist[destinationIndex])} mins")
                 print(f"  Path: {pathStr}")
 
-            return dist[dstIdx], pathArr[:pathLen]
+            return dist[destinationIndex], pathArray[:pathLength]
 
         except Exception as e:
             raise Exception(f"Error in Dijkstra's algorithm: {e}")
@@ -555,19 +643,20 @@ def menu(g):
     option = 0
     while option != 10:
         print("\n=== ZipRide Graph Menu ===")
-        print("1.  Add vertex")
-        print("2.  Delete vertex")
-        print("3.  Add edge (with weight)")
-        print("4.  Delete edge")
-        print("5.  Display as adjacency list")
-        print("6.  Display as adjacency matrix")
-        print("7.  Breadth First Search (BFS by level)")
-        print("8.  Depth First Search (DFS cycle detection)")
-        print("9.  Shortest Path (Dijkstra)")
+        print("1. Add vertex")
+        print("2. Delete vertex")
+        print("3. Add edge (with weight)")
+        print("4. Delete edge")
+        print("5. Display as adjacency list")
+        print("6. Display as adjacency matrix")
+        print("7. Breadth First Search (BFS by level)")
+        print("8. Depth First Search (DFS cycle detection)")
+        print("9. Shortest Path (Dijkstra)")
         print("10. Quit")
 
         try:
             option = int(input("Enter option: "))
+            
         except ValueError:
             print("Invalid input, please enter a number!")
             option = 0
@@ -576,18 +665,22 @@ def menu(g):
         if option == 1:
             os.system('cls' if os.name == 'nt' else 'clear') # clears screen if with win or linux/mac terminal command
             label = input("Enter vertex label: ")
+            
             try:
                 g.addVertex(label)
                 print(f"Vertex '{label}' added!")
+                
             except Exception as e:
                 print(f"Error: {e}")
 
         elif option == 2:
             os.system('cls' if os.name == 'nt' else 'clear') # clears screen if with win or linux/mac terminal command
             label = input("Enter vertex label to delete: ")
+            
             try:
                 g.deleteVertex(label)
                 print(f"Vertex '{label}' deleted!")
+                
             except Exception as e:
                 print(f"Error: {e}")
 
@@ -595,12 +688,15 @@ def menu(g):
             os.system('cls' if os.name == 'nt' else 'clear') # clears screen if with win or linux/mac terminal command
             label1 = input("Enter first vertex label: ")
             label2 = input("Enter second vertex label: ")
+            
             try:
                 weight = int(input("Enter edge weight (driving time in mins): "))
                 g.addEdge(label1, label2, weight)
                 print(f"Edge '{label1}' <-> '{label2}' (weight={weight}) added!")
+                
             except ValueError:
                 print("Invalid weight, please enter an integer!")
+                
             except Exception as e:
                 print(f"Error: {e}")
 
@@ -608,9 +704,11 @@ def menu(g):
             os.system('cls' if os.name == 'nt' else 'clear') # clears screen if with win or linux/mac terminal command
             label1 = input("Enter first vertex label: ")
             label2 = input("Enter second vertex label: ")
+            
             try:
                 g.deleteEdge(label1, label2)
                 print(f"Edge '{label1}' <-> '{label2}' deleted!")
+                
             except Exception as e:
                 print(f"Error: {e}")
 
@@ -618,6 +716,7 @@ def menu(g):
             os.system('cls' if os.name == 'nt' else 'clear') # clears screen if with win or linux/mac terminal command
             try:
                 g.displayAsList()
+                
             except Exception as e:
                 print(f"Error: {e}")
 
@@ -625,22 +724,27 @@ def menu(g):
             os.system('cls' if os.name == 'nt' else 'clear') # clears screen if with win or linux/mac terminal command
             try:
                 g.displayAsMatrix()
+                
             except Exception as e:
                 print(f"Error: {e}")
 
         elif option == 7:
             os.system('cls' if os.name == 'nt' else 'clear') # clears screen if with win or linux/mac terminal command
             source = input("Enter source location: ")
+            
             try:
                 g.breadthFirstSearch(source)
+                
             except Exception as e:
                 print(f"Error: {e}")
 
         elif option == 8:
             os.system('cls' if os.name == 'nt' else 'clear') # clears screen if with win or linux/mac terminal command
             source = input("Enter source location: ")
+            
             try:
                 g.depthFirstSearch(source)
+                
             except Exception as e:
                 print(f"Error: {e}")
 
@@ -648,8 +752,10 @@ def menu(g):
             os.system('cls' if os.name == 'nt' else 'clear') # clears screen if with win or linux/mac terminal command
             source = input("Enter source location: ")
             destination = input("Enter destination location: ")
+            
             try:
                 g.dijkstra(source, destination)
+                
             except Exception as e:
                 print(f"Error: {e}")
 
