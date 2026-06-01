@@ -1,89 +1,77 @@
 import numpy as np
 
-# ================================================================== CONSTANTS
-
-INITIAL_CAPACITY = 50   # numpy array size; doubled on resize if needed
-
-# ================================================================== PICKUP REQUEST
+INITIAL_CAPACITY = 50   # numpy array size and doubled on resize if needed
 
 class PickupRequest():
-    """
-    Represents a single passenger pickup request.
-
-    Fields
-    ------
-    passengerID      : int   - unique passenger identifier
-    passengerName    : str   - passenger name (for display)
-    pickupLocation   : str   - graph node label
-    membershipTier   : int   - 1 (Platinum) to 5 (Standard)
-    assignedDriverID : int   - driver selected for this request
-    assignedDriverName: str  - driver name (for display)
-    estimatedTime    : float - shortest driving time T (from Dijkstra)
-    priority         : float - (6 - M) + 1000 / T
-    """
-    def __init__(self, passengerID, passengerName, pickupLocation,
-                 membershipTier, assignedDriverID, assignedDriverName,
-                 estimatedTime):
+    # Just a single pickup request object to hold all relevant info and compute the priority
+    def __init__(self, passengerID, passengerName, pickupLocation, membershipTier, assignedDriverID, assignedDriverName, estimatedTime):
         try:
             self._validate(passengerID, membershipTier, estimatedTime)
-            self.passengerID       = int(passengerID)
-            self.passengerName     = str(passengerName).strip()
-            self.pickupLocation    = str(pickupLocation).strip()
-            self.membershipTier    = int(membershipTier)
-            self.assignedDriverID  = int(assignedDriverID)
-            self.assignedDriverName= str(assignedDriverName).strip()
-            self.estimatedTime     = float(estimatedTime)
-            self.priority          = self._calcPriority(membershipTier,
-                                                        estimatedTime)
+            self.passengerID = int(passengerID)
+            self.passengerName = str(passengerName).strip()
+            self.pickupLocation = str(pickupLocation).strip()
+            self.membershipTier = int(membershipTier)
+            self.assignedDriverID = int(assignedDriverID)
+            self.assignedDriverName = str(assignedDriverName).strip()
+            self.estimatedTime = float(estimatedTime)
+            self.priority = self._calcPriority(membershipTier, estimatedTime)
+            
         except Exception as e:
             raise Exception(f"PickupRequest error: {e}")
 
     def _validate(self, passengerID, membershipTier, estimatedTime):
         try:
             int(passengerID)
+            
         except (ValueError, TypeError):
             raise Exception("PassengerID must be an integer")
+        
         try:
             tier = int(membershipTier)
             if tier not in (1, 2, 3, 4, 5):
                 raise Exception("MembershipTier must be 1–5")
+            
         except (ValueError, TypeError):
-            raise Exception("MembershipTier must be an integer 1–5")
+            raise Exception("MembershipTier must be an integer")
+        
         try:
             t = float(estimatedTime)
+            
             if t < 0:
                 raise Exception("EstimatedPickupTime must be >= 0")
+            
         except (ValueError, TypeError):
             raise Exception("EstimatedPickupTime must be a number")
 
     def _calcPriority(self, membershipTier, estimatedTime):
-        """
-        Priority = (6 - M) + 1000 / T
-        Special case: if T == 0 (driver already at pickup location),
-        we use a large constant (10000) so the request still scores
-        highly without a division-by-zero error.
-        """
+        
         t = float(estimatedTime)
+        
         if t == 0:
-            timeBonus = 10000.0
+            # Avoids division by zero error by assigning high time bonus for immediate pickup
+            timeBonus = 9999.0
+            
         else:
             timeBonus = 1000.0 / t
+            
         return (6 - int(membershipTier)) + timeBonus
 
     def updateTier(self, newTier):
-        """Recompute priority after a membership tier change."""
+        # Update the membership tier and recalculate priority
         try:
             tier = int(newTier)
+            
             if tier not in (1, 2, 3, 4, 5):
                 raise Exception("MembershipTier must be 1–5")
+            
             self.membershipTier = tier
             self.priority = self._calcPriority(tier, self.estimatedTime)
+            
         except Exception as e:
             raise Exception(f"Error updating tier: {e}")
 
     def __str__(self):
-        tierLabel = {1:"Platinum", 2:"Gold", 3:"Silver",
-                     4:"Bronze",  5:"Standard"}
+        tierLabel = [None, "Platinum", "Gold", "Silver", "Bronze", "Standard"]
         return (f"Passenger {self.passengerID} ({self.passengerName}) | "
                 f"Pickup: {self.pickupLocation} | "
                 f"Tier: {self.membershipTier} ({tierLabel[self.membershipTier]}) | "
@@ -92,47 +80,18 @@ class PickupRequest():
                 f"Priority: {self.priority:.2f}")
 
 
-# ================================================================== MAX HEAP
-#
-# Max-Heap choice rationale
-# -------------------------
-# A Max-Heap is used so the highest-priority request always sits at index 0
-# and can be extracted in O(log n) without any key inversion.
-# Higher priority = more urgent dispatch (high-tier passenger OR nearest driver),
-# so the root always holds the request that should be dispatched next.
-# A Min-Heap would require negating the priority key, making the code less
-# readable and the priority formula harder to reason about.
-
 class PickupHeap():
-    """
-    Array-based Max-Heap for pickup request scheduling.
-    Backed by a numpy array of PickupRequest objects (dtype=object).
-
-    Operations
-    ----------
-    insert(request)        O(log n)  – add request, percolate up
-    peek()                 O(1)      – view highest-priority request
-    extract_priority()     O(log n)  – remove & return highest-priority request
-    update_tier(pid, tier) O(n)      – find, update, re-heapify
-    remove_driver(driverID)O(n)      – remove all requests for a given driver
-    """
-
     def __init__(self, capacity=INITIAL_CAPACITY):
         try:
             self._capacity = int(capacity)
-            # numpy object array holds PickupRequest references
             self._heap  = np.empty(self._capacity, dtype=object)
             self._count = 0
+            
         except Exception as e:
             raise Exception(f"PickupHeap init error: {e}")
 
-    # -------------------------------------------------------------- public API
-
     def insert(self, request):
-        """
-        Add a PickupRequest to the heap and percolate up.
-        Prints the heap array after insertion.
-        """
+        # Insert a PickupRequest into the heap then trickle up to maintain the max heap
         try:
             if not isinstance(request, PickupRequest):
                 raise Exception("Only PickupRequest objects can be inserted")
@@ -141,47 +100,50 @@ class PickupHeap():
             if self._count >= self._capacity:
                 self._resize()
 
-            # place at end, then percolate up
+            # place at end, then trickle up
             self._heap[self._count] = request
             self._count += 1
-            self._percolateUp(self._count - 1)
+            self._trickleUp(self._count - 1)
 
-            print(f"\n  [Heap] Inserted: {request}")
+            print(f"Inserted: {request}")
             self._printHeap()
 
         except Exception as e:
             raise Exception(f"Error inserting request: {e}")
 
     def peek(self):
-        """Return the highest-priority request without removing it."""
+        # Shows the highest priority request
         try:
             if self._count == 0:
                 raise Exception("Heap is empty – nothing to peek")
+            
             return self._heap[0]
+        
         except Exception as e:
             raise Exception(f"Error peeking heap: {e}")
 
     def extract_priority(self):
-        """
-        Remove and return the highest-priority request.
-        Swaps root with last element, shrinks count, percolates down.
-        Prints the heap array after extraction.
-        """
+        # Swaps root with last element and trickles down
+
         try:
             if self._count == 0:
-                raise Exception("Heap is empty – nothing to extract")
+                raise Exception("Heap is empty")
 
             top = self._heap[0]
 
             # move last element to root and shrink
             self._count -= 1
+            
             self._heap[0] = self._heap[self._count]
+            
             self._heap[self._count] = None
 
             if self._count > 0:
-                self._percolateDown(0)
+                self._trickleDown(0)
 
-            print(f"\n  [Heap] Extracted: {top}")
+
+            print(f"Extracted: {top}")
+            
             self._printHeap()
             return top
 
@@ -189,48 +151,50 @@ class PickupHeap():
             raise Exception(f"Error extracting from heap: {e}")
 
     def update_tier(self, passengerID, newTier):
-        """
-        Find the request for passengerID, update its membership tier,
-        recompute priority, and restore heap order (full heapify).
-        Used when a passenger's tier changes mid-queue.
-        """
+        #Find the request for passengerID, update its membership tier, recompute priority, and fix heap order -  full heapify.
         try:
             idx = self._findByPassengerID(passengerID)
             if idx == -1:
                 raise Exception(f"Passenger {passengerID} not found in heap")
+            
             self._heap[idx].updateTier(newTier)
-            print(f"\n  [Heap] Tier updated for passenger {passengerID} "
-                  f"-> new priority: {self._heap[idx].priority:.2f}")
+            
+            print(f"Tier updated for passenger {passengerID} " f" new priority: {self._heap[idx].priority:.2f}")
+            
             self._heapify()
+            
             self._printHeap()
+            
         except Exception as e:
             raise Exception(f"Error updating tier: {e}")
 
     def remove_driver(self, driverID):
-        """
-        Remove all requests assigned to driverID (driver went Busy/Offline).
-        Rebuilds the heap after removal.
-        """
+        # Remove all requests assigned to a driver and fix heap order - full heapify.
         try:
             removed = 0
             i = 0
+            
             while i < self._count:
                 if self._heap[i].assignedDriverID == driverID:
+                    
                     # overwrite with last element
                     self._count -= 1
                     self._heap[i] = self._heap[self._count]
                     self._heap[self._count] = None
                     removed += 1
-                    # don't advance i – recheck the swapped element
+                    
                 else:
                     i += 1
+                    
             if removed == 0:
-                print(f"  [Heap] No requests found for driver {driverID}.")
+                print(f"   No requests found for driver {driverID}.")
+                
             else:
-                print(f"  [Heap] Removed {removed} request(s) for driver "
-                      f"{driverID} (driver no longer available).")
+                print(f"Removed {removed} request(s) for driver " f"{driverID} driver is no not available")
+                
                 self._heapify()
                 self._printHeap()
+                
         except Exception as e:
             raise Exception(f"Error removing driver requests: {e}")
 
@@ -240,10 +204,8 @@ class PickupHeap():
     def size(self):
         return self._count
 
-    # -------------------------------------------------------------- private
-
-    def _percolateUp(self, idx):
-        """Swap upward while child priority > parent priority."""
+    def _trickleUp(self, idx):
+        # Swap upward when child priority > parent priority.
         current = idx
         done = False
         while current > 0 and not done:
@@ -255,8 +217,8 @@ class PickupHeap():
             else:
                 done = True
 
-    def _percolateDown(self, idx):
-        """Swap downward while parent priority < largest child priority."""
+    def _trickleDown(self, idx):
+        # Swap downward when parent priority < largest child priority.
         current = idx
         done = False
         while not done:
@@ -264,13 +226,16 @@ class PickupHeap():
             right = 2 * current + 2
             largest = current
 
+            # Check left and right children against current largest
             if left < self._count and \
                self._heap[left].priority > self._heap[largest].priority:
                 largest = left
+            # Check right child against current largest
             if right < self._count and \
                self._heap[right].priority > self._heap[largest].priority:
                 largest = right
 
+            # If largest is not current, swap and continue down
             if largest != current:
                 self._heap[current], self._heap[largest] = \
                     self._heap[largest], self._heap[current]
@@ -279,37 +244,44 @@ class PickupHeap():
                 done = True
 
     def _heapify(self):
-        """Rebuild heap property from scratch (used after bulk changes)."""
+        # Build heap from bottom up by trickling down all nodes
         i = (self._count // 2) - 1
+        
         while i >= 0:
-            self._percolateDown(i)
+            self._trickleDown(i)
             i -= 1
 
     def _findByPassengerID(self, passengerID):
-        """Linear scan for a passenger ID; returns index or -1."""
+        # Linear search to find the index of a passengerID
+        
         for i in range(self._count):
             if self._heap[i].passengerID == passengerID:
                 return i
+            
         return -1
 
     def _resize(self):
-        """Double capacity when heap is full."""
+        # Double capacity when heap is full
         try:
             newCapacity = self._capacity * 2
             newHeap = np.empty(newCapacity, dtype=object)
+            
             for i in range(self._count):
                 newHeap[i] = self._heap[i]
+                
             self._heap = newHeap
             self._capacity = newCapacity
-            print(f"  [Heap] Resized to capacity {newCapacity}")
+            
+            print(f"Resized to capacity {newCapacity}")
+            
         except Exception as e:
             raise Exception(f"Error resizing heap: {e}")
 
     def _printHeap(self):
-        """Print the current heap array and a simple tree layout."""
-        print(f"  [Heap] Size: {self._count} | Contents (index: priority | passenger):")
+        print(f"Size: {self._count} | Contents (index: priority | passenger):")
+        
         if self._count == 0:
-            print("    (empty)")
+            print("empty heap")
             return
 
         # flat array view
@@ -321,33 +293,43 @@ class PickupHeap():
                   f"ETA={req.estimatedTime:.1f}min | "
                   f"Driver={req.assignedDriverName}")
 
-        # tree layout (up to 4 levels for readability)
-        print(f"  [Heap] Tree view:")
+        # tree layout
+        print(f"   Tree view:")
+        
         level = 0
-        idx   = 0
+        idx = 0
+        
         while idx < self._count and level < 4:
             levelSize  = 2 ** level
+            
             levelNodes = np.empty(levelSize, dtype=object)
+            
             filled = 0
             i = idx
+            
             while i < idx + levelSize and i < self._count:
                 levelNodes[filled] = (f"[{self._heap[i].passengerID}"
                                       f"|{self._heap[i].priority:.1f}]")
+                
                 filled += 1
                 i += 1
-            indent = "    " + "  " * (3 - level)
-            row = indent + "  ".join(str(levelNodes[j])
-                                     for j in range(filled))
+                
+            indent = "    " + "  " * (3 - level) # indent for tree structure
+            
+            # Join the filled nodes with spacing, leaving empty slots blank
+            row = indent + "  ".join(str(levelNodes[j]) for j in range(filled))
+            
+            
             print(row)
+            
             idx  += levelSize
             level += 1
-        if idx < self._count:
+            
+        if idx < self._count: # if more nodes exist beyond the displayed levels
             print(f"    ... ({self._count - idx} more nodes)")
 
 
-# ================================================================== SCHEDULER
-
-class ZipRideScheduler():
+class Scheduler():
     """
     Integrates the Graph (Module 1) and Hash Tables (Module 2) to build
     PickupRequests and manage the dispatch heap.
@@ -414,12 +396,12 @@ class ZipRideScheduler():
                             pass    # driver unreachable – skip silently
 
             if bestDriverID == -1:
-                print(f"\n  [Scheduler] No available drivers can reach "
+                print(f"records  [Scheduler] No available drivers can reach "
                       f"{pickupLoc}. Request for passenger "
                       f"{passengerID} rejected.")
                 return None
 
-            print(f"\n  [Scheduler] Passenger {passengerID} "
+            print(f"records  [Scheduler] Passenger {passengerID} "
                   f"({passenger.name}) @ {pickupLoc} "
                   f"| Tier {tier} "
                   f"| Nearest driver: {bestDriverName} "
@@ -439,7 +421,7 @@ class ZipRideScheduler():
         """Extract the highest-priority request and mark driver as Busy."""
         try:
             req = self._heap.extract_priority()
-            print(f"\n  [Scheduler] DISPATCHING: {req}")
+            print(f"records  [Scheduler] DISPATCHING: {req}")
 
             # mark driver as Busy in the hash table
             try:
@@ -480,7 +462,7 @@ class ZipRideScheduler():
         """Show the highest-priority request without dispatching."""
         try:
             req = self._heap.peek()
-            print(f"\n  [Scheduler] Next to dispatch: {req}")
+            print(f"records  [Scheduler] Next to dispatch: {req}")
             return req
         except Exception as e:
             raise Exception(f"Error peeking scheduler: {e}")
@@ -494,7 +476,7 @@ class ZipRideScheduler():
 def menu(scheduler):
     option = 0
     while option != 6:
-        print("\n=== ZipRide Scheduler Menu ===")
+        print("records===  Scheduler Menu ===")
         print("1. Request pickup (by Passenger ID)")
         print("2. Dispatch next (highest priority)")
         print("3. Peek next request")
