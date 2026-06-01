@@ -508,7 +508,7 @@ Use QUICK SORT when:
   - In-place sorting is needed (lower memory footprint).
   - Median-of-three pivot is used to guard against sorted/reversed input.
 
-For ZipRide end-of-day dispatch reports, merge sort is recommended
+For  end-of-day dispatch reports, merge sort is recommended
 because stability ensures that passengers with identical pickup times
 are listed in a deterministic, reproducible order.
 ============================================================
@@ -566,7 +566,7 @@ def runDemo(graph, passengerTable, driverTable):
 def menu(graph, passengerTable, driverTable):
     option = 0
     while option != 4:
-        print("\n=== ZipRide Sorting Menu ===")
+        print("\n===  Sorting Menu ===")
         print("1. Run full benchmark (100 / 500 / 1000 records)")
         print("2. Sort a custom dataset (enter size and condition)")
         print("3. Print algorithm analysis")
