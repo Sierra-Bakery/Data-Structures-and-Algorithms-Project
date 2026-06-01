@@ -8,171 +8,176 @@ NEARLY_SORTED_FRAC = 0.10 # fraction of records displaced for nearly-sorted
 DATASET_SIZES = (100, 500, 1000) # dataset sizes for testing
 
 
-def _mergeSort(arr, opCount, low, high):
-    """
-    Top-down recursive merge sort on a numpy array slice [low, high).
-
-    Top-down chosen over bottom-up because:
-    - Recursion naturally mirrors the divide-and-conquer explanation in the report.
-    - Identical worst/average time complexity O(n log n).
-    - Stability: equal keys preserve original relative order (important when
-      secondary sort criteria matter in future extensions).
-
-    opCount is a 1-element numpy array used as a mutable counter (no Python list).
-    """
+def _mergeSort(array, opCount, low, high):
     try:
+        # Base case if single element is already sorted
         if high - low <= 1:
-            return arr
+            return array
 
-        mid = (low + high) // 2
-        _mergeSort(arr, opCount, low, mid)
-        _mergeSort(arr, opCount, mid, high)
-        _merge(arr, opCount, low, mid, high)
-        return arr
+        # Recursive case, so split array in half and merge sort each half
+        middle = (low + high) // 2
+        
+        _mergeSort(array, opCount, low, middle)
+        
+        _mergeSort(array, opCount, middle, high)
+        
+        _merge(array, opCount, low, middle, high)
+        
+        return array
+    
     except Exception as e:
         raise Exception(f"Merge sort error: {e}")
 
 
-def _merge(arr, opCount, low, mid, high):
-    """Merge two sorted halves arr[low:mid] and arr[mid:high] in place."""
-    leftLen  = mid - low
-    rightLen = high - mid
+def _merge(array, opCount, low, middle, high):
+    leftLength  = middle - low
+    rightLength = high - middle
 
-    # temporary numpy arrays (not Python lists)
-    left  = np.empty(leftLen,  dtype=object)
-    right = np.empty(rightLen, dtype=object)
+    left  = np.empty(leftLength, dtype=object)
+    right = np.empty(rightLength, dtype=object)
 
-    for i in range(leftLen):
-        left[i]  = arr[low + i]
+    # Copy data to temp arrays
+    for i in range(leftLength):
+        left[i]  = array[low + i]
         opCount[0] += 1
-    for i in range(rightLen):
-        right[i] = arr[mid + i]
+
+    for i in range(rightLength):
+        right[i] = array[middle + i]
         opCount[0] += 1
 
     i = 0
     j = 0
     k = low
-    while i < leftLen and j < rightLen:
+    
+    # Merge the temp arrays back into array[low..high]
+    while i < leftLength and j < rightLength:
         opCount[0] += 1
+        
+        # Compare the estimatedTime of left[i] and right[j] to maintain stability (keep original order of equal keys)
         if left[i].estimatedTime <= right[j].estimatedTime:
-            arr[k] = left[i]
+            array[k] = left[i]
             i += 1
+            
         else:
-            arr[k] = right[j]
+            array[k] = right[j]
             j += 1
         k += 1
 
-    while i < leftLen:
-        arr[k] = left[i]
+    # Copy the remaining elements of left
+    while i < leftLength:
+        array[k] = left[i]
         i += 1
         k += 1
         opCount[0] += 1
 
-    while j < rightLen:
-        arr[k] = right[j]
+    # Copy the remaining elements of right
+    while j < rightLength:
+        array[k] = right[j]
         j += 1
         k += 1
         opCount[0] += 1
 
 
-def mergeSort(arr):
-    """
-    Public merge sort entry point.
-    Returns (sorted_array, operation_count).
-    Sorts by estimatedTime ascending (stable).
-    """
+def mergeSort(array):
     try:
-        if len(arr) == 0:
-            return arr, 0
+        if len(array) == 0:
+            return array, 0
+        
+        # sort by estimatedTime ascending
         opCount = np.zeros(1, dtype=np.int64)
-        _mergeSort(arr, opCount, 0, len(arr))
-        return arr, int(opCount[0])
+        _mergeSort(array, opCount, 0, len(array))
+        
+        return array, int(opCount[0])
+    
     except Exception as e:
         raise Exception(f"Merge sort failed: {e}")
 
 
-def _quickSortMedian3(arr, opCount, low, high):
-    """
-    Recursive quick sort using median-of-three pivot strategy.
-
-    Pivot strategy: median-of-three (first, middle, last element).
-    Rationale:
-    - Avoids the O(n²) worst case of a fixed first/last pivot on already-sorted
-      or reverse-sorted input, which are two of the three test conditions.
-    - More cache-friendly than random pivot (no extra random number generation).
-    - Keeps average case O(n log n) with smaller constant than random pivot.
-
-    No break used; loop termination controlled by boolean flag.
-    """
+def _quickSort(array, opCount, low, high):
     try:
         if high - low <= 1:
             return
 
-        # median-of-three pivot selection
-        mid = (low + high) // 2
+        # USING A median OF three pivot selection strategy to avoid O(n squared) worst case on sorted/reversed arrays
+        middle = (low + high) // 2
         opCount[0] += 3
 
-        # sort low, mid, high so median ends up at mid
-        if arr[low].estimatedTime > arr[mid].estimatedTime:
-            arr[low], arr[mid] = arr[mid], arr[low]
+        # sort low, middle, high so median ends up at middle
+        # Compare low vs middle, low vs high, middle vs high and swap as needed to order them.
+        # Ensuring the median of the three is at middle.
+        
+        if array[low].estimatedTime > array[middle].estimatedTime:
+            array[low], array[middle] = array[middle], array[low]
             opCount[0] += 1
-        if arr[low].estimatedTime > arr[high - 1].estimatedTime:
-            arr[low], arr[high - 1] = arr[high - 1], arr[low]
+            
+        if array[low].estimatedTime > array[high - 1].estimatedTime:
+            array[low], array[high - 1] = array[high - 1], array[low]
             opCount[0] += 1
-        if arr[mid].estimatedTime > arr[high - 1].estimatedTime:
-            arr[mid], arr[high - 1] = arr[high - 1], arr[mid]
+            
+        if array[middle].estimatedTime > array[high - 1].estimatedTime:
+            array[middle], array[high - 1] = array[high - 1], array[middle]
             opCount[0] += 1
 
-        # place pivot at high-1
-        pivot = arr[mid].estimatedTime
-        arr[mid], arr[high - 1] = arr[high - 1], arr[mid]
+        # place pivot at high-1 for partitioning
+        pivot = array[middle].estimatedTime
+        array[middle], array[high - 1] = array[high - 1], array[middle]
 
         i = low - 1
         j = high - 1
 
+        # Partitioning loop: move i right until find an element >= pivot
+        # move j left until we find an element <= pivot
+        # swap and repeat until i and j cross.
         done = False
         while not done:
             i += 1
-            while arr[i].estimatedTime < pivot:
+            
+            while array[i].estimatedTime < pivot:
                 i += 1
                 opCount[0] += 1
+                
             j -= 1
-            while j >= low and arr[j].estimatedTime > pivot:
+            while j >= low and array[j].estimatedTime > pivot:
                 j -= 1
                 opCount[0] += 1
+                
             if i >= j:
                 done = True
+                
             else:
-                arr[i], arr[j] = arr[j], arr[i]
+                array[i], array[j] = array[j], array[i]
                 opCount[0] += 1
 
         # restore pivot
-        arr[i], arr[high - 1] = arr[high - 1], arr[i]
+        array[i], array[high - 1] = array[high - 1], array[i]
         opCount[0] += 1
 
-        _quickSortMedian3(arr, opCount, low, i)
-        _quickSortMedian3(arr, opCount, i + 1, high)
+        # recursively sort partitions
+        _quickSort(array, opCount, low, i)
+        _quickSort(array, opCount, i + 1, high)
+        
     except Exception as e:
         raise Exception(f"Quick sort error: {e}")
 
 
-def quickSort(arr):
-    """
-    Public quick sort entry point.
-    Returns (sorted_array, operation_count).
-    Sorts by estimatedTime ascending.
-    """
+def quickSort(array):
     try:
-        if len(arr) == 0:
-            return arr, 0
+        if len(array) == 0:
+            return array, 0
+        
+        # sort by estimatedTime ascending
         opCount = np.zeros(1, dtype=np.int64)
-        _quickSortMedian3(arr, opCount, 0, len(arr))
-        return arr, int(opCount[0])
+        _quickSort(array, opCount, 0, len(array))
+        return array, int(opCount[0])
+    
     except Exception as e:
         raise Exception(f"Quick sort failed: {e}")
 
-
-# ================================================================== DATASET GENERATION
+#######################################################################################################################################
+#######################################################################################################################################
+#######################################################################################################################################
+#######################################################################################################################################
+#######################################################################################################################################
 
 class SortableRequest():
     """
@@ -275,27 +280,27 @@ def generateDataset(n, condition, graph, passengerTable, driverTable):
         else:
             raise Exception(f"Unknown condition: {condition}")
 
-        arr = np.empty(n, dtype=object)
+        array = np.empty(n, dtype=object)
         for i in range(n):
-            arr[i] = SortableRequest(i + 1, times[i])
-        return arr
+            array[i] = SortableRequest(i + 1, times[i])
+        return array
 
     except Exception as e:
         raise Exception(f"Error generating dataset: {e}")
 
 
-def _copyArr(arr):
+def _copyArr(array):
     """Return a numpy object array copy (no Python list)."""
-    out = np.empty(len(arr), dtype=object)
-    for i in range(len(arr)):
-        out[i] = arr[i]
+    out = np.empty(len(array), dtype=object)
+    for i in range(len(array)):
+        out[i] = array[i]
     return out
 
 
-def _isSorted(arr):
+def _isSorted(array):
     """Verify ascending sort order."""
-    for i in range(len(arr) - 1):
-        if arr[i].estimatedTime > arr[i + 1].estimatedTime:
+    for i in range(len(array) - 1):
+        if array[i].estimatedTime > array[i + 1].estimatedTime:
             return False
     return True
 
@@ -348,13 +353,13 @@ def runBenchmarks(graph, passengerTable, driverTable):
                     lastOk    = False
 
                     for rep in range(REPEATS):
-                        arr = _copyArr(base)
+                        array = _copyArr(base)
                         t0  = time.perf_counter()
-                        arr, ops = sortFn(arr)
+                        array, ops = sortFn(array)
                         t1  = time.perf_counter()
                         totalTime += (t1 - t0) * 1000   # ms
                         lastOps   = ops
-                        lastOk    = _isSorted(arr)
+                        lastOk    = _isSorted(array)
 
                     avgTime = totalTime / REPEATS
 
@@ -372,16 +377,16 @@ def runBenchmarks(graph, passengerTable, driverTable):
     return results[:row]
 
 
-def printFirstLast(arr, label, n=5):
+def printFirstLast(array, label, n=5):
     """Print first and last n elements of a sorted array for verification."""
     print(f"\n  {label} (first {n} and last {n}):")
-    count = len(arr)
+    count = len(array)
     for i in range(min(n, count)):
-        print(f"    [{i:>4}] {arr[i]}")
+        print(f"    [{i:>4}] {array[i]}")
     if count > n * 2:
         print(f"    ...")
     for i in range(max(n, count - n), count):
-        print(f"    [{i:>4}] {arr[i]}")
+        print(f"    [{i:>4}] {array[i]}")
 
 
 def savePlot(results, outputPath="sorting_benchmark.png"):
@@ -587,10 +592,10 @@ def menu(graph, passengerTable, driverTable):
             try:
                 n    = int(input("  Dataset size: "))
                 cond = input("  Condition (random / nearly_sorted / reversed): ").strip()
-                arr  = generateDataset(n, cond, graph, passengerTable,
+                array  = generateDataset(n, cond, graph, passengerTable,
                                        driverTable)
-                mArr = _copyArr(arr)
-                qArr = _copyArr(arr)
+                mArr = _copyArr(array)
+                qArr = _copyArr(array)
 
                 mArr, mOps = mergeSort(mArr)
                 printFirstLast(mArr, "Merge Sort", n=5)
