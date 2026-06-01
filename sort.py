@@ -2,13 +2,11 @@ import numpy as np
 import timeit
 import time
 
-# ================================================================== CONSTANTS
 
-RANDOM_SEED        = 42       # fixed seed for reproducibility
-NEARLY_SORTED_FRAC = 0.10     # fraction of records displaced for nearly-sorted
-DATASET_SIZES      = (100, 500, 1000)
+RANDOM_SEED = 42 # fixed seed for reproducibility
+NEARLY_SORTED_FRAC = 0.10 # fraction of records displaced for nearly-sorted
+DATASET_SIZES = (100, 500, 1000) # dataset sizes for testing
 
-# ================================================================== SORT HELPERS
 
 def _mergeSort(arr, opCount, low, high):
     """
@@ -609,7 +607,7 @@ def menu(graph, passengerTable, driverTable):
             printAnalysis()
 
         elif option == 4:
-            print("Goodbye!")
+            print("Exiting")
 
         else:
             print("Invalid option, try again!")
