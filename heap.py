@@ -245,12 +245,13 @@ class PickupHeap():
             if rightIsBigger:
                 largest = right
 
-            # If largest is not current, swap and continue down
+            # If largest is not current, swap and  down
             if largest != current:
                 temp = self._heap[current]
                 self._heap[current] = self._heap[largest]
                 self._heap[largest] = temp
                 current = largest
+                
             else:
                 done = True
 
@@ -281,6 +282,7 @@ class PickupHeap():
             for i in range(self._count):
                 newHeap[i] = self._heap[i]
                 
+            # Replace old heap with new heap
             self._heap = newHeap
             self._capacity = newCapacity
             
@@ -290,7 +292,7 @@ class PickupHeap():
             raise Exception(f"Error resizing heap: {e}")
 
     def _printHeap(self):
-        print(f"Size: {self._count} | Contents (index: priority | passenger):")
+        print(f"Size: {self._count} | Contents index: priority | passenger: ")
         
         if self._count == 0:
             print("empty heap")
@@ -298,15 +300,15 @@ class PickupHeap():
 
         # flat array view
         for i in range(self._count):
-            req = self._heap[i]
-            print(f"    [{i:>2}] P={req.priority:>8.2f} | "
-                  f"ID={req.passengerID} ({req.passengerName}) | "
-                  f"Tier={req.membershipTier} | "
-                  f"ETA={req.estimatedTime:.1f}min | "
-                  f"Driver={req.assignedDriverName}")
+            request = self._heap[i]
+            print(f"[{i:>2}] Priority={request.priority:>8.2f} | "
+                  f"ID={request.passengerID} ({request.passengerName}) | "
+                  f"Tier={request.membershipTier} | "
+                  f"ETA={request.estimatedTime:.1f}min | "
+                  f"Driver={request.assignedDriverName}")
 
         # tree layout
-        print(f"   Tree view:")
+        print(f"Tree view:")
         
         level = 0
         idx = 0
@@ -319,6 +321,7 @@ class PickupHeap():
             filled = 0
             i = idx
             
+            # Fill the level nodes with request info or None for empty slots
             while i < idx + levelSize and i < self._count:
                 levelNodes[filled] = (f"[{self._heap[i].passengerID}" f"|{self._heap[i].priority:.1f}]")
                 
@@ -376,10 +379,12 @@ class Scheduler():
                         try:
                             # Catch exceptions if unreachable
                             time, path = self._graph.dijkstra(driverLocation, pickupLocation)
-                            timVal = float(time)
+                            timeValue = float(time)
+                            
                             # Compare ETA to current best time and update if better
-                            if timVal < bestTime:
-                                bestTime = timVal
+                            
+                            if timeValue < bestTime:
+                                bestTime = timeValue
                                 bestDriverID = driver.driverID
                                 bestDriverName = driver.name
                                 bestPath = path
@@ -387,82 +392,85 @@ class Scheduler():
                         except Exception:
                             pass # driver unreachable skip to next driver
 
-######################################################################################################################################
-######################################################################################################################################
-######################################################################################################################################
-######################################################################################################################################
-######################################################################################################################################
-######################################################################################################################################
-######################################################################################################################################
+            # If no available drivers can reach the pickup location then reject the request
             if bestDriverID == -1:
-                print(f"records  [Scheduler] No available drivers can reach "
+                print(f"No available drivers can reach "
                       f"{pickupLocation}. Request for passenger "
                       f"{passengerID} rejected.")
                 return None
 
-            print(f"records  [Scheduler] Passenger {passengerID} "
-                  f"({passenger.name}) @ {pickupLocation} "
+            print(f"Passenger {passengerID} "
+                  f"({passenger.name}) at {pickupLocation} "
                   f"| Tier {tier} "
                   f"| Nearest driver: {bestDriverName} "
-                  f"(ID {bestDriverID}) "
+                  f"ID {bestDriverID} "
                   f"| ETA: {bestTime:.1f} min")
 
-            # --- build and insert request ---
-            req = PickupRequest(passengerID, passenger.name, pickupLocation,
-                                tier, bestDriverID, bestDriverName, bestTime)
-            self._heap.insert(req)
-            return req
+            # Create a pickup request 
+            request = PickupRequest(passengerID, passenger.name, pickupLocation, tier, bestDriverID, bestDriverName, bestTime)
+            #and insert it into the heap
+            self._heap.insert(request)
+            return request
 
         except Exception as e:
             raise Exception(f"Error requesting pickup: {e}")
 
     def dispatchNext(self):
-        """Extract the highest-priority request and mark driver as Busy."""
+        # Get highest priority request from heap and make assigned driver Busy in the hash table
         try:
-            req = self._heap.extract_priority()
-            print(f"records  [Scheduler] DISPATCHING: {req}")
+            # Extract the highest priority request from the heap
+            request = self._heap.extract_priority()
+            print(f"DISPATCHING: {request}")
 
             # mark driver as Busy in the hash table
             try:
-                driver = self._driverTable.search(req.assignedDriverID)
+                driver = self._driverTable.search(request.assignedDriverID)
                 driver.availabilityStatus = "Busy"
-                self._driverTable.insert(driver)   # update (duplicate → overwrite)
-                print(f"  [Scheduler] Driver {req.assignedDriverID} "
-                      f"({req.assignedDriverName}) marked Busy.")
+                self._driverTable.insert(driver) # overwrite with updated status
+                print(f"Driver {request.assignedDriverID} " f"({request.assignedDriverName}) Busy")
+                
             except Exception as e:
-                print(f"  [Scheduler] Warning: could not update driver status: {e}")
+                print(f"Warning: could not update driver status: {e}")
 
-            return req
+            return request
+        
         except Exception as e:
             raise Exception(f"Error dispatching: {e}")
 
     def updatePassengerTier(self, passengerID, newTier):
-        """Update a passenger's tier in both the hash table and the heap."""
         try:
+            # Update the passenger membership tier in the hash table and heap
             passenger = self._passengerTable.search(passengerID)
             passenger.membershipTier = int(newTier)
+            
             self._passengerTable.insert(passenger)  # overwrite
             self._heap.update_tier(passengerID, newTier)
+            print(f"Passenger {passengerID} tier updated to {newTier}")
+            
         except Exception as e:
             raise Exception(f"Error updating passenger tier: {e}")
 
     def driverUnavailable(self, driverID):
-        """Remove a driver's requests from the heap when they go Busy/Offline."""
         try:
+            # Remove all requests assigned to this driver from the heap and mark driver as Busy in the hash table
             self._heap.remove_driver(driverID)
             driver = self._driverTable.search(driverID)
             driver.availabilityStatus = "Busy"
+            
             self._driverTable.insert(driver)
-            print(f"  [Scheduler] Driver {driverID} marked Busy/Offline.")
+            print(f"Driver {driverID} marked Busy/Offline.")
+            
         except Exception as e:
             raise Exception(f"Error marking driver unavailable: {e}")
 
     def peekNext(self):
-        """Show the highest-priority request without dispatching."""
         try:
-            req = self._heap.peek()
-            print(f"records  [Scheduler] Next to dispatch: {req}")
-            return req
+            # Peek highest priority request (index 0 of the heasp)
+            request = self._heap.peek()
+            
+            print(f"Next to dispatch: {request}")
+            return request
+        
         except Exception as e:
             raise Exception(f"Error peeking scheduler: {e}")
 
@@ -470,62 +478,67 @@ class Scheduler():
         return self._heap.size()
 
 
-# ================================================================== MENU
 
 def menu(scheduler):
     option = 0
     while option != 6:
-        print("records===  Scheduler Menu ===")
-        print("1. Request pickup (by Passenger ID)")
-        print("2. Dispatch next (highest priority)")
-        print("3. Peek next request")
-        print("4. Update passenger membership tier")
-        print("5. Mark driver unavailable")
-        print("6. Quit")
+        print("===  Scheduler Menu ===")
+        print("1 Request a pickup for a passenger")
+        print("2 Dispatch the next request")
+        print("3 Peek to the next request")
+        print("4 Update a passenger's membership tier")
+        print("5 Mark a driver as unavailable")
+        print("6 Quit")
 
         try:
             option = int(input("Enter option: "))
+            
         except ValueError:
             print("Invalid input, please enter a number!")
             option = 0
-            continue
+            
 
         if option == 1:
             try:
                 pid = int(input("  Passenger ID: "))
                 scheduler.requestPickup(pid)
+                
             except Exception as e:
-                print(f"  Error: {e}")
+                print(f"Error: {e}")
 
         elif option == 2:
             try:
                 scheduler.dispatchNext()
+                
             except Exception as e:
-                print(f"  Error: {e}")
+                print(f"Error: {e}")
 
         elif option == 3:
             try:
                 scheduler.peekNext()
+                
             except Exception as e:
-                print(f"  Error: {e}")
+                print(f"Error: {e}")
 
         elif option == 4:
             try:
-                pid  = int(input("  Passenger ID: "))
-                tier = int(input("  New membership tier (1–5): "))
+                pid = int(input("Passenger ID: "))
+                tier = int(input("New membership tier: "))
                 scheduler.updatePassengerTier(pid, tier)
+                
             except Exception as e:
-                print(f"  Error: {e}")
+                print(f"Error: {e}")
 
         elif option == 5:
             try:
-                did = int(input("  Driver ID to mark unavailable: "))
+                did = int(input("Driver ID to mark unavailable: "))
                 scheduler.driverUnavailable(did)
+                
             except Exception as e:
-                print(f"  Error: {e}")
+                print(f"Error: {e}")
 
         elif option == 6:
-            print("Goodbye!")
+            print("Exiting")
 
         else:
             print("Invalid option, try again!")
