@@ -11,19 +11,21 @@ import sort
 cont = "Y"
 
 # Initialize the graph and populate it with hardcoded data
-g = graph.Graph()
-initdata.populateGraph(g)
+graphData = graph.Graph()
+initdata.populateGraph(graphData)
+
 # Initialize the hash tables and populate them with hardcoded data
 passengerTable = hash.HashTable(20)
 driverTable    = hash.HashTable(20)
 initdata.populateRecords(passengerTable, driverTable)
+
 # Initialize the scheduler with the graph and hash tables
-scheduler = heap.ZipRideScheduler(g, passengerTable, driverTable)
+scheduler = heap.Scheduler(graphData, passengerTable, driverTable)
 
 while cont == "Y":
     print("Welcome to the ZipRide Dispatch System!")
-    graph.menu(g)
+    graph.menu(graphData)
     hash.menu(passengerTable, driverTable)
     heap.menu(scheduler)
-    sort.menu(g, passengerTable, driverTable)
+    sort.menu(graphData, passengerTable, driverTable)
     cont = input("Would you like to continue? (Y/N): ").upper()
