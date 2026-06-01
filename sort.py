@@ -5,7 +5,7 @@ import time
 
 RANDOM_SEED = 42 # fixed seed for reproducibility
 NEARLY_SORTED_FRAC = 0.10 # fraction of records displaced for nearly-sorted
-DATASET_SIZES = (100, 500, 1000) # dataset sizes for testing
+DATASIZES = (100, 500, 1000) # dataset sizes for testing
 
 
 def _mergeSort(array, opCount, low, high):
@@ -173,23 +173,15 @@ def quickSort(array):
     except Exception as e:
         raise Exception(f"Quick sort failed: {e}")
 
-#######################################################################################################################################
-#######################################################################################################################################
-#######################################################################################################################################
-#######################################################################################################################################
-#######################################################################################################################################
 
 class SortableRequest():
-    """
-    Lightweight stand-in for a PickupRequest used in sorting benchmarks.
-    Only needs estimatedTime and passengerID for identity.
-    Using a class (not a tuple) keeps the sort key access identical to
-    the real heap.PickupRequest, so sort code is drop-in compatible.
-    """
+    # Wrapper for a passenger request that includes the estimated pickup time
+    # For sorting benchmark demonstration
     def __init__(self, passengerID, estimatedTime):
         try:
-            self.passengerID   = int(passengerID)
+            self.passengerID = int(passengerID)
             self.estimatedTime = float(estimatedTime)
+            
         except Exception as e:
             raise Exception(f"SortableRequest error: {e}")
 
@@ -198,31 +190,31 @@ class SortableRequest():
 
 
 def _generateTimes(n, rng, graph, passengerTable, driverTable):
-    """
-    Generate n realistic EstimatedPickupTime values using Dijkstra on the
-    real graph where possible, falling back to synthetic times when records
-    run out.  Returns a numpy float array.
-    """
+    # Generate n estimated pickup times by sampling random driver and passenger pairs
     times = np.empty(n, dtype=float)
 
-    # collect all (driverLocation, passengerLocation) pairs from hash tables
-    driverLocs    = np.empty(50, dtype=object)
-    passengerLocs = np.empty(50, dtype=object)
+    # collect all driverLocation and passengerLocation pairs from hash tables
+    driverLocations = np.empty(50, dtype=object)
+    passengerLocations = np.empty(50, dtype=object)
+    
     dCount = 0
     pCount = 0
 
     try:
         dArr = driverTable._hashArray
+        # iterate through driver hash table and collect up to 50 current locations of active drivers
         for i in range(len(dArr)):
             if dArr[i].state == 1 and dCount < 50:
-                driverLocs[dCount] = dArr[i].value.currentLocation
+                driverLocations[dCount] = dArr[i].value.currentLocation
                 dCount += 1
 
         pArr = passengerTable._hashArray
+        # iterate through passenger hash table and collect up to 50 pickup locations of active passengers
         for i in range(len(pArr)):
             if pArr[i].state == 1 and pCount < 50:
-                passengerLocs[pCount] = pArr[i].value.pickupLocation
+                passengerLocations[pCount] = pArr[i].value.pickupLocation
                 pCount += 1
+
     except Exception:
         dCount = 0
         pCount = 0
@@ -230,45 +222,55 @@ def _generateTimes(n, rng, graph, passengerTable, driverTable):
     for idx in range(n):
         try:
             if dCount > 0 and pCount > 0:
-                dLoc = driverLocs[rng.integers(0, dCount)]
-                pLoc = passengerLocs[rng.integers(0, pCount)]
+                #sample random driver and passenger locations and get Dijkstra time
+                dLoc = driverLocations[rng.integers(0, dCount)]
+                pLoc = passengerLocations[rng.integers(0, pCount)]
                 t, _ = graph.dijkstra(dLoc, pLoc)
+                
                 t = float(t)
+                
+                # handle any infinite or negative times by replacing with random time
                 if t == np.inf or t < 0:
                     t = float(rng.integers(5, 120))
+                 
+            # if no active drivers or passengers then generate random time
             else:
                 t = float(rng.integers(5, 120))
+                
         except Exception:
             t = float(rng.integers(5, 120))
+            
         times[idx] = t
 
     return times
 
 
 def generateDataset(n, condition, graph, passengerTable, driverTable):
-    """
-    Generate a numpy array of n SortableRequest objects.
-
-    condition : 'random'       – fully shuffled
-                'nearly_sorted'– sorted with ~10% records displaced
-                'reversed'     – reverse sorted
-
-    Returns numpy object array of SortableRequest.
-    No Python lists used.
-    """
+    # condition: random, nearly_sorted, reversed
     try:
-        rng   = np.random.default_rng(RANDOM_SEED)
+        rng = np.random.default_rng(RANDOM_SEED) # FIXED SEED FOR REPRODUCIBILITY
         times = _generateTimes(n, rng, graph, passengerTable, driverTable)
 
-        # sort as baseline
-        times = np.sort(times)
-
+        # sort as baseline with selection sort
+        for i in range(len(times)):
+            minIndex = i
+            
+            for j in range(i + 1, len(times)):
+                if times[j] < times[minIndex]:
+                    minIndex = j
+            
+            temp = times[i]
+            times[i] = times[minIndex]
+            times[minIndex] = temp
+            
         if condition == "reversed":
             times = times[::-1].copy()
 
         elif condition == "nearly_sorted":
             nSwaps = max(1, int(n * NEARLY_SORTED_FRAC))
             idxArr = rng.choice(n, size=nSwaps * 2, replace=False)
+            
+            # swap pairs of elements at random indices to create a nearly sorted array
             for k in range(nSwaps):
                 a = int(idxArr[k])
                 b = int(idxArr[k + nSwaps])
@@ -290,76 +292,67 @@ def generateDataset(n, condition, graph, passengerTable, driverTable):
 
 
 def _copyArr(array):
-    """Return a numpy object array copy (no Python list)."""
     out = np.empty(len(array), dtype=object)
+    
     for i in range(len(array)):
         out[i] = array[i]
+        
     return out
 
 
 def _isSorted(array):
-    """Verify ascending sort order."""
+    # sorted check by estimatedTime ascending
     for i in range(len(array) - 1):
         if array[i].estimatedTime > array[i + 1].estimatedTime:
             return False
     return True
 
 
-# ================================================================== BENCHMARKING
 
 def runBenchmarks(graph, passengerTable, driverTable):
-    """
-    Run merge sort and quick sort across all dataset sizes and conditions.
-    Returns a numpy structured array of results and prints a formatted table.
-    """
+    # Benchmark merge sort and quick sort on sets of various sizes and conditions
     conditions = ("random", "nearly_sorted", "reversed")
-    nRows      = len(DATASET_SIZES) * len(conditions) * 2   # 2 algorithms
-    REPEATS    = 3   # average over this many timing runs
+    nRows      = len(DATASIZES) * len(conditions) * 2   # 2 algorithms
+    
+    REPEATS    = 3   # average over 3 timing runs
 
-    # structured numpy array for results (no Python list of dicts)
-    dtype = np.dtype([
-        ("algorithm",  "U12"),
-        ("size",       np.int32),
-        ("condition",  "U14"),
-        ("time_ms",    np.float64),
-        ("ops",        np.int64),
-        ("correct",    bool),
-    ])
+    # array to hold results for easy plotting and analysis
+    dtype = np.dtype([("algorithm", "U12"), ("size", np.int32),
+                    ("condition", "U14"), ("time_ms", np.float64),
+                    ("ops", np.int64), ("correct", bool) ])
+    
     results = np.empty(nRows, dtype=dtype)
-    row     = 0
-
-    print("\n" + "=" * 78)
-    print("SORTING BENCHMARK")
-    print("=" * 78)
-    print(f"{'Algorithm':<12} {'Size':>6} {'Condition':<15} "
-          f"{'Time (ms)':>10} {'Operations':>12} {'Correct':>8}")
-    print("-" * 78)
-
-    for n in DATASET_SIZES:
+    row = 0
+    
+    print("=== SORTING BENCHMARK ===")
+    print(f"{'Algorithm':<12} {'Size':>6} {'Condition':<15} "f"{'Time (ms)':>10} {'Operations':>12} {'Correct':>8}")
+    print("-----------------------------------------------------------------------------------------------------")
+    
+    for n in DATASIZES:
         for cond in conditions:
             try:
-                base = generateDataset(n, cond, graph, passengerTable,
-                                       driverTable)
+                base = generateDataset(n, cond, graph, passengerTable, driverTable)
+                
             except Exception as e:
-                print(f"  Error generating {n}/{cond}: {e}")
-                continue
+                print(f"Error generating {n}/{cond}: {e}")
 
-            for algo, sortFn in (("MergeSort", mergeSort),
-                                 ("QuickSort", quickSort)):
+            # benchmark both algorithms on the same base array
+            for algo, sortFn in (("MergeSort", mergeSort), ("QuickSort", quickSort)):
                 try:
                     # average timing over REPEATS runs
                     totalTime = 0.0
                     lastOps   = 0
                     lastOk    = False
 
+                    # copy base array for each run to ensure same input
                     for rep in range(REPEATS):
                         array = _copyArr(base)
-                        t0  = time.perf_counter()
+                        t0 = time.perf_counter()
                         array, ops = sortFn(array)
-                        t1  = time.perf_counter()
-                        totalTime += (t1 - t0) * 1000   # ms
-                        lastOps   = ops
-                        lastOk    = _isSorted(array)
+                        t1 = time.perf_counter()
+                        totalTime += (t1 - t0) * 1000  # convert to milliseconds
+                        lastOps = ops
+                        lastOk = _isSorted(array)
 
                     avgTime = totalTime / REPEATS
 
@@ -368,81 +361,102 @@ def runBenchmarks(graph, passengerTable, driverTable):
 
                     print(f"{algo:<12} {n:>6} {cond:<15} "
                           f"{avgTime:>10.3f} {lastOps:>12,} "
-                          f"{'YES' if lastOk else '*** NO ***':>8}")
+                          f"{'YES' if lastOk else 'NO':>8}")
 
                 except Exception as e:
-                    print(f"  Error in {algo}/{n}/{cond}: {e}")
+                    print(f"Error in {algo}/{n}/{cond}: {e}")
 
-    print("=" * 78)
+    print("=== BENCHMARK COMPLETE ===")
+    
     return results[:row]
 
 
 def printFirstLast(array, label, n=5):
-    """Print first and last n elements of a sorted array for verification."""
+    # print the first and last n elements of an array
     print(f"\n  {label} (first {n} and last {n}):")
     count = len(array)
+    
     for i in range(min(n, count)):
-        print(f"    [{i:>4}] {array[i]}")
+        print(f" [{i:>4}] {array[i]}")
+        
     if count > n * 2:
-        print(f"    ...")
+        print(f" === ")
+        
     for i in range(max(n, count - n), count):
-        print(f"    [{i:>4}] {array[i]}")
+        print(f" [{i:>4}] {array[i]}")
 
 
 def savePlot(results, outputPath="sorting_benchmark.png"):
-    """
-    Save a 2x3 grid of bar charts comparing merge/quick sort across
-    all size+condition combinations.
-    """
+    #
     try:
         import matplotlib
+        
+        # Agg because not interactive so headless is ok
         matplotlib.use("Agg")
+        
         import matplotlib.pyplot as plt
 
         conditions = ("random", "nearly_sorted", "reversed")
-        fig, axes  = plt.subplots(1, 3, figsize=(15, 5))
-        fig.suptitle("Merge Sort vs Quick Sort — Time (ms)", fontsize=14)
+        
+        fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+        fig.suptitle("Merge Sort to Quick Sort in time", fontsize=14)
 
-        for col, cond in enumerate(conditions):
-            ax    = axes[col]
-            sizes = np.array(DATASET_SIZES)
+        # Plot a grouped bar chart comparing merge sort and quick sort times for each condition and data size
+        for column, cond in enumerate(conditions):
+            ax = axes[column]
+            
+            sizes = np.array(DATASIZES)
             mTimes = np.zeros(len(sizes))
             qTimes = np.zeros(len(sizes))
 
-            for si, n in enumerate(sizes):
-                mask = ((results["algorithm"] == "MergeSort") &
-                        (results["size"] == n) &
-                        (results["condition"] == cond))
+            for s, n in enumerate(sizes):
+                # Create a mask for results for the current algorithm size, and condition
+                mask = ((results["algorithm"] == "MergeSort") & (results["size"] == n) & (results["condition"] == cond))
+                
                 if np.any(mask):
-                    mTimes[si] = results["time_ms"][mask][0]
+                    mTimes[s] = results["time_ms"][mask][0]
 
-                mask = ((results["algorithm"] == "QuickSort") &
-                        (results["size"] == n) &
-                        (results["condition"] == cond))
+                mask = ((results["algorithm"] == "QuickSort") & (results["size"] == n) & (results["condition"] == cond))
+                
                 if np.any(mask):
-                    qTimes[si] = results["time_ms"][mask][0]
+                    qTimes[s] = results["time_ms"][mask][0]
 
-            xPos  = np.arange(len(sizes))
+            xPosition  = np.arange(len(sizes))
             width = 0.35
-            ax.bar(xPos - width / 2, mTimes, width, label="Merge Sort",
-                   color="#4C72B0")
-            ax.bar(xPos + width / 2, qTimes, width, label="Quick Sort",
-                   color="#DD8452")
+            
+            ax.bar(xPosition - width / 2, mTimes, width, label="Merge Sort", color="blue")
+            
+            ax.bar(xPosition + width / 2, qTimes, width, label="Quick Sort", color="orange")
+            
             ax.set_title(cond.replace("_", " ").title())
             ax.set_xlabel("Dataset size")
-            ax.set_ylabel("Time (ms)")
-            ax.set_xticks(xPos)
+            ax.set_ylabel("Time in milliseconds")
+            ax.set_xticks(xPosition)
+            
             ax.set_xticklabels([str(s) for s in sizes])
+            
             ax.legend()
 
         plt.tight_layout()
-        plt.savefig(outputPath, dpi=150)
+        plt.savefig(outputPath)
         plt.close()
-        print(f"\n  Plot saved to: {outputPath}")
+        
+        print(f"\nPlot saved to: {outputPath}")
 
     except Exception as e:
-        print(f"\n  Plot skipped: {e}")
+        print(f"\nPlot skipped: {e}")
 
+#############################################################################################################################
+#############################################################################################################################
+#############################################################################################################################
+#############################################################################################################################
+#############################################################################################################################
+#############################################################################################################################
+#############################################################################################################################
+#############################################################################################################################
+#############################################################################################################################
+#############################################################################################################################
+#############################################################################################################################
 
 def printAnalysis():
     """Print a written reflection on algorithm performance."""
@@ -580,7 +594,7 @@ def menu(graph, passengerTable, driverTable):
         except ValueError:
             print("Invalid input, please enter a number!")
             option = 0
-            continue
+            
 
         if option == 1:
             try:
