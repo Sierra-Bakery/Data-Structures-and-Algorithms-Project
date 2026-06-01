@@ -80,10 +80,9 @@ DRIVER_DATA = [
 
 
 def populateRecords(passengerTable, driverTable):
-    """
-    Populates the given HashTable instances with all hardcoded
-    passenger and driver records.
-    """
+    # Populates the given HashTable instances with all hardcoded
+    # passenger and driver records.
+    
     try:
         passengerCount = 0
         for pid, name, loc, tier, phone in PASSENGER_DATA:
@@ -91,15 +90,18 @@ def populateRecords(passengerTable, driverTable):
                 rec = hash.PassengerRecord(pid, name, loc, tier, phone)
                 passengerTable.insert(rec)
                 passengerCount += 1
+                
             except Exception as e:
                 print(f"  Warning: could not add passenger {pid}: {e}")
  
         driverCount = 0
+        
         for did, name, loc, status, vehicle, rating in DRIVER_DATA:
             try:
                 rec = hash.DriverRecord(did, name, loc, status, vehicle, rating)
                 driverTable.insert(rec)
                 driverCount += 1
+                
             except Exception as e:
                 print(f"  Warning: could not add driver {did}: {e}")
  
@@ -110,23 +112,25 @@ def populateRecords(passengerTable, driverTable):
         raise Exception(f"Error populating records: {e}")
 
 
-def populateGraph(g):
+def populateGraph(graphData):
     try:
         # add every unique vertex found in the edge data
         for src, dst, _ in EDGE_DATA:
-            if not g.hasVertex(src):
-                g.addVertex(src)
-            if not g.hasVertex(dst):
-                g.addVertex(dst)
+            if not graphData.hasVertex(src):
+                graphData.addVertex(src)
+                
+            if not graphData.hasVertex(dst):
+                graphData.addVertex(dst)
  
         # add every edge with its weight
         for src, dst, weight in EDGE_DATA:
             try:
-                g.addEdge(src, dst, weight)
+                graphData.addEdge(src, dst, weight)
+                
             except Exception as e:
                 print(f"  Warning: could not add edge {src} <-> {dst}: {e}")
  
-        print(f"Graph populated: {g.getVertexCount()} vertices, {g.getEdgeCount()} edges.")
+        print(f"Graph populated: {graphData.getVertexCount()} vertices, {graphData.getEdgeCount()} edges.")
  
     except Exception as e:
         raise Exception(f"Error populating graph: {e}")
