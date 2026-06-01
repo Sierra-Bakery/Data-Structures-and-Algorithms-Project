@@ -5,13 +5,13 @@ import linklists
 # From Workshop 7: Hash Tables
 
 # Globals for slot states in the hash table
-NEVER_USED =  0 # slot has never held a record (search can stop at this marker)
-USED =  1 # slot currently holds a record
+NEVER_USED = 0 # slot has never held a record (search can stop at this marker)
+USED = 1 # slot currently holds a record
 OLD_USED = -1 # tombstone marker for deleted slots (allows probing to )
 
 # Globals for hash table behavior
-LOAD_FACTOR_THRESHOLD = 0.7   # resize / warn when load exceeds this
-LOAD_PRINT_INTERVAL = 10    # print load factor every N inserts
+LOAD_FACTOR_THRESHOLD = 0.7 # resize / warn when load exceeds this
+LOAD_PRINT_INTERVAL = 10 # print load factor every N inserts
 
 # Globals for valid field values for tiers and statuses
 VALID_MEMBERSHIP_TIERS = (1, 2, 3, 4, 5) # 1 = Platinum (highest) 5 = Standard (lowest)
@@ -57,7 +57,7 @@ class PassengerRecord():
         return self.passengerID
 
     def __str__(self):
-        tierName = {1:"Platinum", 2:"Gold", 3:"Silver", 4:"Bronze", 5:"Standard"}
+        tierName = (None, "Platinum", "Gold", "Silver", "Bronze", "Standard")
         return (f"Passenger [{self.passengerID}] | {self.name} | "f"Pickup: {self.pickupLocation} | "f"Tier: {self.membershipTier} ({tierName[self.membershipTier]}) | "
                 f"Phone: {self.phoneNumber if self.phoneNumber else 'N/A'}")
 
@@ -130,9 +130,11 @@ class HashEntry():
 class HashTable():
     def __init__(self, tableSize=100):
         try:
+            # ensure table size is prime to reduce clustering and improve distribution
             realSize = self._nextPrime(tableSize)
             self._hashArray  = np.empty(realSize, dtype=object)
             
+            # initialize all slots with empty HashEntry objects
             for i in range(realSize):
                 self._hashArray[i] = HashEntry()
                 
@@ -236,9 +238,9 @@ class HashTable():
             step1 = self._stepHash(key1)
             step2 = self._stepHash(key2)
             
-            print(f"  === Collision Demonstration ===")
-            print(f" Key {key1}: initial slot = {h1}, probe step = {step1}")
-            print(f" Key {key2}: initial slot = {h2}, probe step = {step2}")
+            print(f"Demonstrating collision for keys {key1} and {key2}:")
+            print(f"Key {key1}: initial slot = {h1}, probe step = {step1}")
+            print(f"Key {key2}: initial slot = {h2}, probe step = {step2}")
             
             if h1 == h2:
                 print(f"COLLISION {h1}")
@@ -438,11 +440,11 @@ def menu(passengerTable, driverTable):
         if option == 1:
             try:
                 # '_' used to indicate this is a helper (in lecture slides)
-                pid = _inputInt("Passenger ID (integer): ") 
+                pid = _inputInt("Passenger ID: ") 
                 name = _inputStr("Name: ")
-                location = _inputStr("Pickup location (graph node): ")
-                tier = _inputInt("Membership tier (1=Platinum … 5=Standard): ", 1, 5)
-                phone = input("Phone number (optional, press Enter to skip): ")
+                location = _inputStr("Pickup location: ")
+                tier = _inputInt("Membership tier: ", 1, 5)
+                phone = input("Phone number: ")
                 records = PassengerRecord(pid, name, location, tier, phone)
                 passengerTable.insert(records)
                 
@@ -478,13 +480,15 @@ def menu(passengerTable, driverTable):
 
         elif option == 5:
             try:
-                did = _inputInt("Driver ID (integer): ")
+                did = _inputInt("Driver ID: ")
                 name = _inputStr("Name: ")
-                location = _inputStr("Current location (graph node): ")
+                location = _inputStr("Current location: ")
                 status = _inputStr(f"Availability status {VALID_DRIVER_STATUSES}: ", choices=list(VALID_DRIVER_STATUSES))
-                vehicle = input("Vehicle type (optional, Enter for 'Sedan'): ") or "Sedan"
-                rating = _inputFloat("  Rating (0.0–5.0, Enter for 5.0): ")
+                vehicle = input("Vehicle type (Normal 'Sedan'): ") or "Sedan"
+                rating = _inputFloat("Rating (Normal 5.0): ")
+                
                 records = DriverRecord(did, name, location, status, vehicle, rating)
+                
                 driverTable.insert(records)
                 print(f"Driver {did} added.")
                 
@@ -517,7 +521,7 @@ def menu(passengerTable, driverTable):
                 print(f"Error: {e}")
 
         elif option == 9:
-            print("Goodbye!")
+            print("Exiting")
 
         else:
             print("Invalid option, try again!")
