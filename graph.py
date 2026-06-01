@@ -762,7 +762,7 @@ def menu(graphData):
 
         elif option == 10:
             os.system('cls' if os.name == 'nt' else 'clear') # clears screen if with win or linux/mac terminal command
-            print("Goodbye!")
+            print("Exiting")
 
         else:
             print("Invalid option, try again!")
