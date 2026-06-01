@@ -209,11 +209,16 @@ class PickupHeap():
         current = idx
         done = False
         while current > 0 and not done:
+            # compare priorities
             parent = (current - 1) // 2
-            if self._heap[current].priority > self._heap[parent].priority:
-                self._heap[current], self._heap[parent] = \
-                    self._heap[parent], self._heap[current]
+            childIsBigger = self._heap[current].priority > self._heap[parent].priority
+            
+            if childIsBigger:
+                temp = self._heap[current]
+                self._heap[current] = self._heap[parent]
+                self._heap[parent] = temp
                 current = parent
+                
             else:
                 done = True
 
@@ -222,23 +227,29 @@ class PickupHeap():
         current = idx
         done = False
         while not done:
-            left  = 2 * current + 1
+            left = 2 * current + 1
             right = 2 * current + 2
             largest = current
 
             # Check left and right children against current largest
-            if left < self._count and \
-               self._heap[left].priority > self._heap[largest].priority:
+            leftExists = left < self._count
+            leftIsBigger = leftExists and (self._heap[left].priority > self._heap[largest].priority)
+            
+            if leftIsBigger:
                 largest = left
+            
             # Check right child against current largest
-            if right < self._count and \
-               self._heap[right].priority > self._heap[largest].priority:
+            rightExists = right < self._count
+            rightIsBigger = rightExists and (self._heap[right].priority > self._heap[largest].priority)
+            
+            if rightIsBigger:
                 largest = right
 
             # If largest is not current, swap and continue down
             if largest != current:
-                self._heap[current], self._heap[largest] = \
-                    self._heap[largest], self._heap[current]
+                temp = self._heap[current]
+                self._heap[current] = self._heap[largest]
+                self._heap[largest] = temp
                 current = largest
             else:
                 done = True
@@ -266,13 +277,14 @@ class PickupHeap():
             newCapacity = self._capacity * 2
             newHeap = np.empty(newCapacity, dtype=object)
             
+            # Copy elements to new array
             for i in range(self._count):
                 newHeap[i] = self._heap[i]
                 
             self._heap = newHeap
             self._capacity = newCapacity
             
-            print(f"Resized to capacity {newCapacity}")
+            print(f"Resized to {newCapacity}")
             
         except Exception as e:
             raise Exception(f"Error resizing heap: {e}")
@@ -308,8 +320,7 @@ class PickupHeap():
             i = idx
             
             while i < idx + levelSize and i < self._count:
-                levelNodes[filled] = (f"[{self._heap[i].passengerID}"
-                                      f"|{self._heap[i].priority:.1f}]")
+                levelNodes[filled] = (f"[{self._heap[i].passengerID}" f"|{self._heap[i].priority:.1f}]")
                 
                 filled += 1
                 i += 1
@@ -330,86 +341,67 @@ class PickupHeap():
 
 
 class Scheduler():
-    """
-    Integrates the Graph (Module 1) and Hash Tables (Module 2) to build
-    PickupRequests and manage the dispatch heap.
-
-    Driver selection strategy
-    -------------------------
-    For each incoming request:
-    1. Scan the driver hash table for every driver with status "Available".
-    2. Run Dijkstra from each available driver's CurrentLocation to the
-       passenger's PickupLocation.
-    3. Select the driver with the minimum EstimatedPickupTime (T).
-    4. Compute Priority = (6 - M) + 1000 / T and insert into the heap.
-
-    Update handling
-    ---------------
-    - Tier change    : update_tier() adjusts priority in-place and re-heapifies.
-    - Driver goes busy: remove_driver() purges their requests; if re-requested,
-      a new nearest-available driver is selected automatically.
-    - No drivers available: request is rejected with a clear message.
-    """
-
     def __init__(self, graph, passengerTable, driverTable):
         try:
-            self._graph          = graph
+            self._graph = graph
             self._passengerTable = passengerTable
-            self._driverTable    = driverTable
-            self._heap           = PickupHeap()
+            self._driverTable = driverTable
+            self._heap = PickupHeap()
+            
         except Exception as e:
-            raise Exception(f"Scheduler init error: {e}")
+            raise Exception(f"Scheduler starting error: {e}")
 
     def requestPickup(self, passengerID):
-        """
-        Main entry point: retrieve passenger, find nearest available driver,
-        compute priority, and insert request into the heap.
-        """
         try:
-            # --- retrieve passenger ---
+            # get passenger info
             passenger = self._passengerTable.search(passengerID)
-            pickupLoc = passenger.pickupLocation
-            tier      = passenger.membershipTier
+            pickupLocation = passenger.pickupLocation
+            tier = passenger.membershipTier
 
-            # --- find nearest available driver ---
-            bestDriverID   = -1
+            # get nearest available driver by checking all drivers in the hash table and ETA with Dijkstra
+            bestDriverID = -1
             bestDriverName = ""
-            bestTime       = float('inf')
-            bestPath       = None
+            bestTime = 100000000.0 # insanely high number for comparison ^0.0^
+            bestPath = None
 
-            cur = self._driverTable._hashArray
-            for i in range(len(cur)):
-                if cur[i].state == 1:           # USED slot
-                    driver = cur[i].value
+            current = self._driverTable._hashArray
+            
+            for i in range(len(current)): # iterate through hash table array
+                if current[i].state == 1: # occupied slot
+                    driver = current[i].value
+                    
                     if driver.availabilityStatus == "Available":
-                        driverLoc = driver.currentLocation
+                        driverLocation = driver.currentLocation
+                        
                         try:
-                            time, path = self._graph.dijkstra(driverLoc,
-                                                              pickupLoc)
+                            # Catch exceptions if unreachable
+                            time, path = self._graph.dijkstra(driverLocation, pickupLocation)
                             timVal = float(time)
+                            # Compare ETA to current best time and update if better
                             if timVal < bestTime:
-                                bestTime       = timVal
-                                bestDriverID   = driver.driverID
+                                bestTime = timVal
+                                bestDriverID = driver.driverID
                                 bestDriverName = driver.name
-                                bestPath       = path
+                                bestPath = path
+                                
                         except Exception:
-                            pass    # driver unreachable – skip silently
+                            pass # driver unreachable skip to next driver
 
             if bestDriverID == -1:
                 print(f"records  [Scheduler] No available drivers can reach "
-                      f"{pickupLoc}. Request for passenger "
+                      f"{pickupLocation}. Request for passenger "
                       f"{passengerID} rejected.")
                 return None
 
             print(f"records  [Scheduler] Passenger {passengerID} "
-                  f"({passenger.name}) @ {pickupLoc} "
+                  f"({passenger.name}) @ {pickupLocation} "
                   f"| Tier {tier} "
                   f"| Nearest driver: {bestDriverName} "
                   f"(ID {bestDriverID}) "
                   f"| ETA: {bestTime:.1f} min")
 
             # --- build and insert request ---
-            req = PickupRequest(passengerID, passenger.name, pickupLoc,
+            req = PickupRequest(passengerID, passenger.name, pickupLocation,
                                 tier, bestDriverID, bestDriverName, bestTime)
             self._heap.insert(req)
             return req
