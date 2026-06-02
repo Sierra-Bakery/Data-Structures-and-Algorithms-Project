@@ -1,3 +1,7 @@
+# Description: Graph structure for storing the locations and driving times between them
+# Author: Dylan Baker 22368201
+# Date: 30/05/2026
+
 import linklists
 import numpy as np
 import os

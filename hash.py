@@ -1,3 +1,7 @@
+# Description: Hash table for storing passenger and driver records with linear probing for collisions
+# Author: Dylan Baker 22368201
+# Date: 30/05/2026
+
 import numpy as np
 import linklists
 

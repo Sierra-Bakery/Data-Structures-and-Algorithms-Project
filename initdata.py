@@ -1,4 +1,6 @@
 # initdata.py - HARDCODED DATA FOR EASE OF STARTING
+# Author: Dylan Baker 22368201
+# Date: 28/05/2026
 # This file is meant to be run once to populate the graph with data.
 import graph
 import hash

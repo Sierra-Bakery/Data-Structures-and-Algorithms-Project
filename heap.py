@@ -1,3 +1,8 @@
+# Description: Heap for managing pickup request by priority and scheduler class to link all data structures together
+# Author: Dylan Baker 22368201
+# Date: 30/05/2026
+
+
 import numpy as np
 
 INITIAL_CAPACITY = 50   # numpy array size and doubled on resize if needed

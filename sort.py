@@ -1,3 +1,7 @@
+# Description: Merge sort and quick sort algorithms link to rest of the program with benchmarking of estimated pickup times for passenger requests
+# Author: Dylan Baker 22368201
+# Date: 30/05/2026
+
 import numpy as np
 import timeit
 import time
@@ -453,72 +457,7 @@ def savePlot(results, outputPath="sorting_benchmark.png"):
 
 def printAnalysis():    
     print("""
-ALGORITHM ANALYSIS
 
-Merge Sort
-Using top down and stable approach
-Strategy : Divide array in half recursively; merge sorted halves.
-Pivot : splits at midpoint.
-Stability: STABLE — equal keys preserve relative input order.
-Complexity:
-  Best / Average / Worst = O(n log n) in all cases.
-  Space = O(n) — temporary arrays needed during merge.
-
-Performance observations:
-  - Consistent across all three input conditions (random, nearly
-    sorted, reversed) because the midpoint split is oblivious to
-    data order.
-  - Nearly-sorted input shows no speed advantage because merge sort
-    does not detect pre-existing order.
-  - Higher constant factor than quick sort in practice due to the
-    extra numpy array allocations in _merge().
-
-Quick Sort (median-of-three pivot, in-place)
----------------------------------------------
-Strategy : Partition around a pivot; recurse on sub-arrays.
-Pivot    : Median-of-three (first, middle, last element).
-           Rationale: avoids O(n²) worst case of fixed first/last
-           pivot on sorted and reversed input — exactly the two
-           pathological conditions tested here.
-Stability: NOT stable — equal keys may be reordered by swapping.
-Complexity:
-  Best / Average = O(n log n).
-  Worst          = O(n²) — occurs with fixed pivot on sorted input,
-                   mitigated here by median-of-three.
-  Space          = O(log n) — recursion stack only (in-place).
-
-Performance observations:
-  - Faster than merge sort on random data at large n due to better
-    cache locality (in-place, no auxiliary arrays).
-  - Median-of-three keeps nearly-sorted and reversed cases close to
-    O(n log n); a naive first-element pivot would degrade to O(n²).
-  - Operation count is lower than merge sort on random data but
-    slightly higher on nearly-sorted (median selection overhead).
-
-Summary table (expected behaviour)
-------------------------------------
-Condition       | Merge Sort  | Quick Sort (M3)
-----------------|-------------|----------------
-Random          | O(n log n)  | O(n log n) — fastest in practice
-Nearly sorted   | O(n log n)  | O(n log n) — M3 helps avoid O(n²)
-Reversed        | O(n log n)  | O(n log n) — M3 pivot handles well
-
-Recommendation
---------------
-Use MERGE SORT when:
-  - Stability is required (preserving tie-break order by passenger ID).
-  - Data is nearly sorted (consistent performance).
-  - Memory is not a constraint.
-
-Use QUICK SORT when:
-  - Raw speed on large random datasets is the priority.
-  - In-place sorting is needed (lower memory footprint).
-  - Median-of-three pivot is used to guard against sorted/reversed input.
-
-For  end-of-day dispatch reports, merge sort is recommended
-because stability ensures that passengers with identical pickup times
-are listed in a deterministic, reproducible order.
-============================================================
 """)
 
 
@@ -568,8 +507,8 @@ def menu(graph, passengerTable, driverTable):
     option = 0
     while option != 4:
         print("===  Sorting Menu ===")
-        print("1 Run full benchmark (100, 500 and 1000)")
-        print("2 Sort a custom dataset with size and condition")
+        print("1 Run a benchmark (100, 500 and 1000)")
+        print("2 Sort custom data with size and condition")
         print("3 Print algorithm analysis")
         print("4 Quit")
 
