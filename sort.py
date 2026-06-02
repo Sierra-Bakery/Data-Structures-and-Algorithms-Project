@@ -7,11 +7,6 @@ import timeit
 import time
 
 
-
-
-
-
-
 def _mergeSort(array, opCount, low, high):
     try:
         # Base case if single element is already sorted
@@ -133,6 +128,7 @@ def _quickSort(array, opCount, low, high):
         # move j left until we find an element <= pivot
         # swap and repeat until i and j cross.
         done = False
+        
         while not done:
             i += 1
             
@@ -461,7 +457,7 @@ def printAnalysis():
 """)
 
 
-def runDemo(graph, passengerTable, driverTable):
+def demonstration(graph, passengerTable, driverTable):
     # Demonstrate sorting algorithms:
     #   Generate data then sort the data and verify it is sorted
     #   Then benchmakr it and plot the restults.
@@ -479,20 +475,20 @@ def runDemo(graph, passengerTable, driverTable):
         for i in range(len(demo)):
             print(f"    [{i}] {demo[i]}")
 
-        mArr = _copyArr(demo)
-        mArr, mOps = mergeSort(mArr)
+        mainArray = _copyArr(demo)
+        mainArray, mergeOperations = mergeSort(mainArray)
         
-        printFirstLast(mArr, "Merge Sort result", n=5)
-        print(f"Operations: {mOps:,}")
+        printFirstLast(mainArray, "Merge Sort result", n=5)
+        print(f"Operations: {mergeOperations:,}")
 
         qArr = _copyArr(demo)
-        qArr, qOps = quickSort(qArr)
+        qArr, quickOperations = quickSort(qArr)
         printFirstLast(qArr, "Quick Sort result", n=5)
-        print(f"Operations: {qOps:,}")
+        print(f"Operations: {quickOperations:,}")
 
         results = runBenchmarks(graph, passengerTable, driverTable)
 
-        savePlot(results, "/mnt/user-data/outputs/sorting_benchmark.png")
+        savePlot(results, "sorting_benchmark.png")
 
         printAnalysis()
 
@@ -521,31 +517,28 @@ def menu(graph, passengerTable, driverTable):
 
         if option == 1:
             try:
-                runDemo(graph, passengerTable, driverTable)
+                demonstration(graph, passengerTable, driverTable)
             except Exception as e:
                 print(f"Error: {e}")
 
         elif option == 2:
             try:
-                n    = int(input("  Dataset size: "))
-                cond = input("  Condition (random / nearly_sorted / reversed): ").strip()
+                n    = int(input("Dataset size: "))
+                cond = input("Condition (random / nearly_sorted / reversed): ").strip()
                 array  = generateDataset(n, cond, graph, passengerTable, driverTable)
-                mArr = _copyArr(array)
+                mainArray = _copyArr(array)
                 qArr = _copyArr(array)
 
-                mArr, mOps = mergeSort(mArr)
-                printFirstLast(mArr, "Merge Sort", n=5)
-                print(f"Merge Sort operations: {mOps:,} | Correct: {_isSorted(mArr)}")
+                mainArray, mergeOperations = mergeSort(mainArray)
+                printFirstLast(mainArray, "Merge Sort", n=5)
+                print(f"Merge Sort operations: {mergeOperations:,} | Correct: {_isSorted(mainArray)}")
 
-                qArr, qOps = quickSort(qArr)
+                qArr, quickOperations = quickSort(qArr)
                 printFirstLast(qArr, "Quick Sort", n=5)
-                print(f"Quick Sort operations: {qOps:,} | Correct: {_isSorted(qArr)}")
+                print(f"Quick Sort operations: {quickOperations:,} | Correct: {_isSorted(qArr)}")
 
             except Exception as e:
                 print(f"  Error: {e}")
-
-        elif option == 3:
-            printAnalysis()
 
         elif option == 4:
             print("Exiting")
