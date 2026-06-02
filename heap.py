@@ -4,8 +4,8 @@
 
 
 import numpy as np
-
 INITIAL_CAPACITY = 50   # numpy array size and doubled on resize if needed
+
 
 class PickupRequest():
     # Just a single pickup request object to hold all relevant info and compute the priority
