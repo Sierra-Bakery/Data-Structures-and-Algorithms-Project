@@ -53,6 +53,7 @@ class Graph():
             while current is not None:
                 if current.value.label == label: # if found, return the vertex object
                     return current.value
+                
                 current = current.next 
                 
             raise Exception("Vertex not found") 
@@ -69,7 +70,9 @@ class Graph():
             while current is not None:
                 if current.value.label == label: # if found, return True
                     return True
+                
                 current = current.next
+                
             return False
         
         except Exception as e: # if not found after traversing whole list, raise exception
@@ -94,6 +97,7 @@ class Graph():
         #Returns a numpy array of all vertex labels
         vertexCount = self.getVertexCount()
         labels = np.empty(vertexCount, dtype=object)
+        
         current = self.vertices.head
         i = 0
         
@@ -101,6 +105,7 @@ class Graph():
             labels[i] = current.value.label
             i += 1
             current = current.next
+            
         return labels
 
     def _labelIndex(self, labels, label):
@@ -108,6 +113,7 @@ class Graph():
         for i in range(len(labels)):
             if labels[i] == label:
                 return i
+            
         return -1
 
 
@@ -165,6 +171,7 @@ class Graph():
                     else: # if not found, keep traversing
                         previous = current
                         current = current.next
+                        
         except Exception as e:
             raise Exception(f"Error deleting vertex: {e}")
 
@@ -181,6 +188,7 @@ class Graph():
                     
                 else:
                     previous.next = temporary.next
+                    
                 found = True
                 
             else: # if not found, keep traversing
@@ -200,7 +208,7 @@ class Graph():
 
 
     def getEdgeCount(self):
-        # traverses vertices and counts all edges by adding the lengths of their lists
+        # traverse vertices and counts all edges by adding the lengths of their lists
         # divides count by 2 for undirected edges also for edges stored twice
         try:
             count = 0
@@ -212,8 +220,10 @@ class Graph():
                 while inner is not None:
                     count += 1
                     inner = inner.next
+                    
                 current = current.next
                 count = count // 2
+                
             return count
         
         except Exception as e:
@@ -246,6 +256,7 @@ class Graph():
                     return temporary.value.weight
                 
                 temporary = temporary.next
+                
             return 0
         
         except Exception as e: # Raises exception if either vertex not found
@@ -263,11 +274,11 @@ class Graph():
             
             while temporary is not None:
                 vertex = temporary.value
-                print(f"  {vertex.label} |", end="")
+                print(f"{vertex.label} |", end="")
                 inner = vertex.links.head
                 
                 while inner is not None:
-                    print(f" {inner.value.vertex.label}(weight={inner.value.weight})", end="") # print neighbour label and weight
+                    print(f"{inner.value.vertex.label}(weight={inner.value.weight})", end="") # print neighbour label and weight
                     inner = inner.next
                 print()
                 temporary = temporary.next
@@ -372,7 +383,7 @@ class Graph():
             # print grouped by level
             maxLevel = int(np.max(levelArr[levelArr >= 0]))
             print(f"BFS from source: {sourceLabel}")
-            print("  Reachable locations by level:")
+            print("Reachable locations by level:")
             
             
             for lvl in range(maxLevel + 1): # for each level from 0 to maxLevel, find the nuimbers of vertices at that level and print their labels
@@ -381,13 +392,13 @@ class Graph():
                 
                 for i in range(len(idxs)): # fill locationNames array with labels of vertices at this level using the idxs to index into labels array
                     locationNames[i] = labels[idxs[i]]
-                print(f"    Level {lvl}: {', '.join(locationNames)}")
+                print(f"Level {lvl}: {', '.join(locationNames)}")
 
             # report unreachable nodes if any
             unreachable = labels[levelArr == -1]
             
             if len(unreachable) > 0:
-                print(f"  Unreachable locations: {', '.join(unreachable)}")
+                print(f"Unreachable locations: {', '.join(unreachable)}")
 
             return levelArr, labels
 
@@ -512,11 +523,11 @@ class Graph():
             if cycleFound:
                 # if a cycle is found, print the cycle path by joining the labels in cycleArr up to cycleLen
                 cyclePath = " -> ".join(str(cycleArr[i]) for i in range(cycleLen))
-                print(f"  Cycle detected!")
-                print(f"  Locations involved: {cyclePath}")
+                print(f"Cycle detected!")
+                print(f"Locations involved: {cyclePath}")
                 
             else:
-                print("  No cycle found in graph")
+                print("No cycle found in graph")
 
             return cycleFound, cycleArr[:cycleLen]
 

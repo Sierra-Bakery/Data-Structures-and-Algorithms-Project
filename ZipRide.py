@@ -16,7 +16,7 @@ initdata.populateGraph(graphData)
 
 # Initialize the hash tables and populate them with hardcoded data
 passengerTable = hash.HashTable(20)
-driverTable    = hash.HashTable(20)
+driverTable = hash.HashTable(20)
 initdata.populateRecords(passengerTable, driverTable)
 
 # Initialize the scheduler with the graph and hash tables
