@@ -3,9 +3,9 @@ import timeit
 import time
 
 
-RANDOM_SEED = 42 # fixed seed for reproducibility
-NEARLY_SORTED_FRAC = 0.10 # fraction of records displaced for nearly-sorted
-DATASIZES = (100, 500, 1000) # dataset sizes for testing
+
+
+
 
 
 def _mergeSort(array, opCount, low, high):
@@ -248,7 +248,9 @@ def _generateTimes(n, rng, graph, passengerTable, driverTable):
 def generateDataset(n, condition, graph, passengerTable, driverTable):
     # condition: random, nearly_sorted, reversed
     try:
-        rng = np.random.default_rng(RANDOM_SEED) # FIXED SEED FOR REPRODUCIBILITY
+        randomSeed = 42 # fixed seed for reproducibility
+        SortedFraction = 0.10 # fraction of records displaced for nearly-sorted
+        rng = np.random.default_rng(randomSeed) # FIXED SEED FOR REPRODUCIBILITY
         times = _generateTimes(n, rng, graph, passengerTable, driverTable)
 
         # sort as baseline with selection sort
@@ -267,7 +269,7 @@ def generateDataset(n, condition, graph, passengerTable, driverTable):
             times = times[::-1].copy()
 
         elif condition == "nearly_sorted":
-            nSwaps = max(1, int(n * NEARLY_SORTED_FRAC))
+            nSwaps = max(1, int(n * SortedFraction))
             idxArr = rng.choice(n, size=nSwaps * 2, replace=False)
             
             # swap pairs of elements at random indices to create a nearly sorted array
@@ -311,8 +313,9 @@ def _isSorted(array):
 
 def runBenchmarks(graph, passengerTable, driverTable):
     # Benchmark merge sort and quick sort on sets of various sizes and conditions
+    dataSize = (100, 500, 1000) # dataset sizes for testing
     conditions = ("random", "nearly_sorted", "reversed")
-    nRows      = len(DATASIZES) * len(conditions) * 2   # 2 algorithms
+    nRows      = len(dataSize) * len(conditions) * 2 # 2 algorithms with 3 conditions and 3 sizes
     
     REPEATS    = 3   # average over 3 timing runs
 
@@ -328,7 +331,7 @@ def runBenchmarks(graph, passengerTable, driverTable):
     print(f"{'Algorithm':<12} {'Size':>6} {'Condition':<15} "f"{'Time (ms)':>10} {'Operations':>12} {'Correct':>8}")
     print("-----------------------------------------------------------------------------------------------------")
     
-    for n in DATASIZES:
+    for n in dataSize:
         for cond in conditions:
             try:
                 base = generateDataset(n, cond, graph, passengerTable, driverTable)
@@ -397,6 +400,7 @@ def savePlot(results, outputPath="sorting_benchmark.png"):
         import matplotlib.pyplot as plt
 
         conditions = ("random", "nearly_sorted", "reversed")
+        dataSize = (100, 500, 1000) # dataset sizes for testing
         
         fig, axes = plt.subplots(1, 3, figsize=(15, 5))
         fig.suptitle("Merge Sort to Quick Sort in time", fontsize=14)
@@ -405,7 +409,7 @@ def savePlot(results, outputPath="sorting_benchmark.png"):
         for column, cond in enumerate(conditions):
             ax = axes[column]
             
-            sizes = np.array(DATASIZES)
+            sizes = np.array(dataSize)
             mTimes = np.zeros(len(sizes))
             qTimes = np.zeros(len(sizes))
 
@@ -446,29 +450,15 @@ def savePlot(results, outputPath="sorting_benchmark.png"):
     except Exception as e:
         print(f"\nPlot skipped: {e}")
 
-#############################################################################################################################
-#############################################################################################################################
-#############################################################################################################################
-#############################################################################################################################
-#############################################################################################################################
-#############################################################################################################################
-#############################################################################################################################
-#############################################################################################################################
-#############################################################################################################################
-#############################################################################################################################
-#############################################################################################################################
 
-def printAnalysis():
-    """Print a written reflection on algorithm performance."""
+def printAnalysis():    
     print("""
-============================================================
 ALGORITHM ANALYSIS
-============================================================
 
-Merge Sort (top-down, stable)
-------------------------------
+Merge Sort
+Using top down and stable approach
 Strategy : Divide array in half recursively; merge sorted halves.
-Pivot    : N/A — no pivot; always splits at midpoint.
+Pivot : splits at midpoint.
 Stability: STABLE — equal keys preserve relative input order.
 Complexity:
   Best / Average / Worst = O(n log n) in all cases.
@@ -532,44 +522,39 @@ are listed in a deterministic, reproducible order.
 """)
 
 
-# ================================================================== DEMO / TEST DRIVER
-
 def runDemo(graph, passengerTable, driverTable):
-    """
-    Full demo: generate datasets, sort, verify, benchmark, plot.
-    Satisfies the required 10 insert / 5 extract test run from Module 3
-    by using real Dijkstra times from the graph.
-    """
+    # Demonstrate sorting algorithms:
+    #   Generate data then sort the data and verify it is sorted
+    #   Then benchmakr it and plot the restults.
     try:
-        print("\n" + "=" * 60)
+        print("=======================")
         print("MODULE 4 — SORTING DEMO")
-        print("=" * 60)
+        print("=======================")
+        print("\n")
 
-        # --- small visual demo on n=10 ---
+        # small demo with 10 random records to show the sorting in action
         print("\n--- Small demo (n=10, random) ---")
-        demo = generateDataset(10, "random", graph, passengerTable,
-                               driverTable)
-        print("  Unsorted:")
+        demo = generateDataset(10, "random", graph, passengerTable, driverTable)
+        print("Unsorted:")
+        
         for i in range(len(demo)):
             print(f"    [{i}] {demo[i]}")
 
         mArr = _copyArr(demo)
         mArr, mOps = mergeSort(mArr)
+        
         printFirstLast(mArr, "Merge Sort result", n=5)
-        print(f"  Operations: {mOps:,}")
+        print(f"Operations: {mOps:,}")
 
         qArr = _copyArr(demo)
         qArr, qOps = quickSort(qArr)
         printFirstLast(qArr, "Quick Sort result", n=5)
-        print(f"  Operations: {qOps:,}")
+        print(f"Operations: {qOps:,}")
 
-        # --- full benchmark ---
         results = runBenchmarks(graph, passengerTable, driverTable)
 
-        # --- plot ---
         savePlot(results, "/mnt/user-data/outputs/sorting_benchmark.png")
 
-        # --- analysis ---
         printAnalysis()
 
         return results
@@ -578,16 +563,15 @@ def runDemo(graph, passengerTable, driverTable):
         raise Exception(f"Demo error: {e}")
 
 
-# ================================================================== MENU
 
 def menu(graph, passengerTable, driverTable):
     option = 0
     while option != 4:
-        print("\n===  Sorting Menu ===")
-        print("1. Run full benchmark (100 / 500 / 1000 records)")
-        print("2. Sort a custom dataset (enter size and condition)")
-        print("3. Print algorithm analysis")
-        print("4. Quit")
+        print("===  Sorting Menu ===")
+        print("1 Run full benchmark (100, 500 and 1000)")
+        print("2 Sort a custom dataset with size and condition")
+        print("3 Print algorithm analysis")
+        print("4 Quit")
 
         try:
             option = int(input("Enter option: "))
@@ -600,24 +584,23 @@ def menu(graph, passengerTable, driverTable):
             try:
                 runDemo(graph, passengerTable, driverTable)
             except Exception as e:
-                print(f"  Error: {e}")
+                print(f"Error: {e}")
 
         elif option == 2:
             try:
                 n    = int(input("  Dataset size: "))
                 cond = input("  Condition (random / nearly_sorted / reversed): ").strip()
-                array  = generateDataset(n, cond, graph, passengerTable,
-                                       driverTable)
+                array  = generateDataset(n, cond, graph, passengerTable, driverTable)
                 mArr = _copyArr(array)
                 qArr = _copyArr(array)
 
                 mArr, mOps = mergeSort(mArr)
                 printFirstLast(mArr, "Merge Sort", n=5)
-                print(f"  Merge Sort operations: {mOps:,} | Correct: {_isSorted(mArr)}")
+                print(f"Merge Sort operations: {mOps:,} | Correct: {_isSorted(mArr)}")
 
                 qArr, qOps = quickSort(qArr)
                 printFirstLast(qArr, "Quick Sort", n=5)
-                print(f"  Quick Sort operations: {qOps:,} | Correct: {_isSorted(qArr)}")
+                print(f"Quick Sort operations: {qOps:,} | Correct: {_isSorted(qArr)}")
 
             except Exception as e:
                 print(f"  Error: {e}")
@@ -629,4 +612,4 @@ def menu(graph, passengerTable, driverTable):
             print("Exiting")
 
         else:
-            print("Invalid option, try again!")
+            print("Invalid option")
