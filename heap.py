@@ -482,15 +482,15 @@ class Scheduler():
     def heapSize(self):
         return self._heap.size()
 
-def demonstration(graph, passengerTable, driverTable):
+def demonstration(scheduler):
     # Demonstration for the scheduler and heap
     print("=== Scheduler Demonstration ===")
     
     # new scheduler so no drivers are already Busy from earlier use
-    demoScheduler = Scheduler(graph, passengerTable, driverTable)
+    #scheduler = Scheduler(graph, passengerTable, driverTable)
     
     # change all drivers to Available for the demonstration
-    driverArray = driverTable._hashArray
+    #driverArray = driverTable._hashArray
     
     passengerIDs = np.array([1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010])
     
@@ -500,7 +500,7 @@ def demonstration(graph, passengerTable, driverTable):
         print(f"Requesting pickup for passenger {passengerIDs[i]}")
         
         try:
-            demoScheduler.requestPickup(int(passengerIDs[i]))
+            scheduler.requestPickup(int(passengerIDs[i]))
             
         except Exception as e:
             print(f"Could not request pickup for {passengerIDs[i]}: {e}")
@@ -508,7 +508,7 @@ def demonstration(graph, passengerTable, driverTable):
     print("# Peek the next request")
     
     try:
-        demoScheduler.peekNext()
+        scheduler.peekNext()
         
     except Exception as e:
         print(f"Could not peek: {e}")
@@ -519,18 +519,18 @@ def demonstration(graph, passengerTable, driverTable):
         print(f"Dispatch {i + 1}:")
         
         try:
-            demoScheduler.dispatchNext()
+            scheduler.dispatchNext()
             
         except Exception as e:
             print(f"Could not dispatch: {e}")
     
     print("# Peek the next request")
     try:
-        demoScheduler.peekNext()
+        scheduler.peekNext()
     except Exception as e:
         print(f"Heap is empty, nothing left to peek: {e}")
 
-def menu(scheduler, graph, passengerTable, driverTable):
+def menu(scheduler):
     option = 0
     while option != 6:
         print("===  Scheduler Menu ===")
@@ -590,7 +590,7 @@ def menu(scheduler, graph, passengerTable, driverTable):
                 print(f"Error: {e}")
 
         elif option == 6:
-            demonstration(graph, passengerTable, driverTable)
+            demonstration(scheduler)
 
         elif option == 7:
             print("Exiting")
