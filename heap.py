@@ -482,7 +482,40 @@ class Scheduler():
     def heapSize(self):
         return self._heap.size()
 
+def demonstration(graph, passengerTable, driverTable):
+    # Demonstration for the scheduler and heap
+    print("=== Scheduler Demonstration ===")
+    
+    scheduler = Scheduler(graph, passengerTable, driverTable)
+    passengerIDs = np.array([1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010])
+    
+    print("# Insert pickup requests for 10 passengers")
 
+    for i in range(len(passengerIDs)):
+        print(f"Requesting pickup for passenger {passengerIDs[i]}")
+        
+        try:
+            scheduler.requestPickup(int(passengerIDs[i]))
+            
+        except Exception as e:
+            print(f"Could not request pickup for {passengerIDs[i]}: {e}")
+    
+    print("# Peek the next request")
+    scheduler.peekNext()
+    
+    print("# Extract 5 requests")
+
+    for i in range(5):
+        print(f"Dispatch {i + 1}:")
+        
+        try:
+            scheduler.dispatchNext()
+            
+        except Exception as e:
+            print(f"Could not dispatch: {e}")
+    
+    print("# Peek the next request")
+    scheduler.peekNext()
 
 def menu(scheduler):
     option = 0
@@ -493,7 +526,8 @@ def menu(scheduler):
         print("3 Peek to the next request")
         print("4 Update a passenger's membership tier")
         print("5 Mark a driver as unavailable")
-        print("6 Quit")
+        print("6 Demonstration")
+        print("7 Exit")
 
         try:
             option = int(input("Enter option: "))
@@ -543,6 +577,9 @@ def menu(scheduler):
                 print(f"Error: {e}")
 
         elif option == 6:
+            demonstration(graph, passengerTable, driverTable)
+
+        elif option == 7:
             print("Exiting")
 
         else:
