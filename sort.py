@@ -3,6 +3,8 @@
 # Date: 30/05/2026
 
 import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
 import timeit
 import time
 
@@ -328,6 +330,7 @@ def runBenchmarks(graph, passengerTable, driverTable):
     row = 0
     
     print("=== SORTING BENCHMARK ===")
+    # print header for benchmark results
     print(f"{'Algorithm':<12} {'Size':>6} {'Condition':<15} "f"{'Time (ms)':>10} {'Operations':>12} {'Correct':>8}")
     print("-----------------------------------------------------------------------------------------------------")
     
@@ -389,15 +392,11 @@ def printFirstLast(array, label, n=5):
         print(f" [{i:>4}] {array[i]}")
 
 
-def savePlot(results, outputPath="sorting_benchmark.png"):
+def savePlot(results, outputPath="sortingBenchmark.pdf"):
     #
     try:
-        import matplotlib
-        
         # Agg because not interactive so headless is ok
         matplotlib.use("Agg")
-        
-        import matplotlib.pyplot as plt
 
         conditions = ("random", "nearly_sorted", "reversed")
         dataSize = (100, 500, 1000) # dataset sizes for testing
@@ -488,7 +487,7 @@ def demonstration(graph, passengerTable, driverTable):
 
         results = runBenchmarks(graph, passengerTable, driverTable)
 
-        savePlot(results, "sorting_benchmark.png")
+        savePlot(results, "sortingBenchmark.pdf")
 
         printAnalysis()
 
@@ -505,8 +504,7 @@ def menu(graph, passengerTable, driverTable):
         print("===  Sorting Menu ===")
         print("1 Run a benchmark (100, 500 and 1000)")
         print("2 Sort custom data with size and condition")
-        print("3 Print algorithm analysis")
-        print("4 Quit")
+        print("3 Quit")
 
         try:
             option = int(input("Enter option: "))
@@ -523,24 +521,27 @@ def menu(graph, passengerTable, driverTable):
 
         elif option == 2:
             try:
-                n    = int(input("Dataset size: "))
-                cond = input("Condition (random / nearly_sorted / reversed): ").strip()
-                array  = generateDataset(n, cond, graph, passengerTable, driverTable)
+                n = int(input("Dataset size: "))
+                cond = input("Condition (random / nearly_sorted / reversed): ")
+                
+                array = generateDataset(n, cond, graph, passengerTable, driverTable)
                 mainArray = _copyArr(array)
                 qArr = _copyArr(array)
 
                 mainArray, mergeOperations = mergeSort(mainArray)
+                
                 printFirstLast(mainArray, "Merge Sort", n=5)
                 print(f"Merge Sort operations: {mergeOperations:,} | Correct: {_isSorted(mainArray)}")
 
                 qArr, quickOperations = quickSort(qArr)
+                
                 printFirstLast(qArr, "Quick Sort", n=5)
                 print(f"Quick Sort operations: {quickOperations:,} | Correct: {_isSorted(qArr)}")
 
             except Exception as e:
                 print(f"  Error: {e}")
 
-        elif option == 4:
+        elif option == 3:
             print("Exiting")
 
         else:

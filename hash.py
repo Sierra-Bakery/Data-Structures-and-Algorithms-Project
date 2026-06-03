@@ -8,17 +8,17 @@ import linklists
 # WARNING: THIS FILE CONTAINS CODE FROM PAST WORKSHOPS
 # From Workshop 7: Hash Tables
 
-# !! Globals for slot states in the hash table, Hope its allowed !!
+# !! Globals for slot states in the hash table, Check if it is frowned upon !!
 NEVER_USED = 0 # slot has never held a record (search can stop at this marker)
 USED = 1 # slot currently holds a record
-OLD_USED = -1 # tombstone marker for deleted slots (allows probing to )
+OLD_USED = -1 # tombstone marker for deleted slots
 
 # Globals for hash table behavior
-LOAD_FACTOR_THRESHOLD = 0.7 # resize / warn when load exceeds this
+LOAD_FACTOR_THRESHOLD = 0.7 # resize when load exceeds this
 LOAD_PRINT_INTERVAL = 10 # print load factor every N inserts
 
 # Globals for valid field values for tiers and statuses
-VALID_MEMBERSHIP_TIERS = (1, 2, 3, 4, 5) # 1 = Platinum (highest) 5 = Standard (lowest)
+VALID_MEMBERSHIP_TIERS = (1, 2, 3, 4, 5)
 VALID_DRIVER_STATUSES = ("Available", "Busy", "Offline")
 
 

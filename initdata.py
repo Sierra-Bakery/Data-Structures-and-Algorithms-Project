@@ -6,6 +6,7 @@ import graph
 import hash
 
 # source, destination, weight in minutes
+# total of 30 edges and 10 vertices
 EDGE_DATA = [
     ("CBD", "Hospital", 5),
     ("CBD", "Curtin", 14),
@@ -43,6 +44,7 @@ EDGE_DATA = [
 ]
 
 # passengerID, name, pickupLocation, membershipTier, phoneNumber
+# total of 15 passengers
 PASSENGER_DATA = [
     (1001, "Alice Nguyen", "CBD", 1, "0411000001"),
     (1002, "Bob Smith", "Fremantle", 2, "0411000002"),
@@ -62,6 +64,7 @@ PASSENGER_DATA = [
 ]
  
 # driverID, name, currentLocation, availabilityStatus, vehicleType, rating
+# total of 15 drivers
 DRIVER_DATA = [
     (2001, "Tom Hardy", "CBD", "Available", "Sedan", 4.8),
     (2002, "Sara Connor", "Airport", "Busy", "SUV", 4.5),
