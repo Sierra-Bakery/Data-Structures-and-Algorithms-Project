@@ -502,7 +502,7 @@ def demonstration(graph, passengerTable, driverTable):
 
 def menu(graph, passengerTable, driverTable):
     option = 0
-    while option != 4:
+    while option != 3:
         print("===  Sorting Menu ===")
         print("1 Run a benchmark (100, 500 and 1000)")
         print("2 Sort custom data with size and condition")
