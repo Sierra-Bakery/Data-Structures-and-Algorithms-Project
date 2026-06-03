@@ -3,6 +3,9 @@
 # Made by Dylan Baker 22368201
 # Date: 30/05/2026
 
+import dependencies
+dependencies.checkDependencies()
+
 import graph
 import initdata
 import hash
