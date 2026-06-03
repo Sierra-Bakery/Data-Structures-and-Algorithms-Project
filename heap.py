@@ -494,7 +494,9 @@ def demonstration(scheduler):
     
     passengerIDs = np.array([1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010])
     
+    print("#" * 10)
     print("# Insert pickup requests for 10 passengers")
+    print("#" * 10)
 
     for i in range(len(passengerIDs)):
         print(f"Requesting pickup for passenger {passengerIDs[i]}")
@@ -505,7 +507,9 @@ def demonstration(scheduler):
         except Exception as e:
             print(f"Could not request pickup for {passengerIDs[i]}: {e}")
     
+    print("#" * 10)
     print("# Peek the next request")
+    print("#" * 10)
     
     try:
         scheduler.peekNext()
@@ -513,7 +517,9 @@ def demonstration(scheduler):
     except Exception as e:
         print(f"Could not peek: {e}")
     
+    print("#" * 10)
     print("# Extract 5 requests")
+    print("#" * 10)
 
     for i in range(5):
         print(f"Dispatch {i + 1}:")
@@ -524,15 +530,19 @@ def demonstration(scheduler):
         except Exception as e:
             print(f"Could not dispatch: {e}")
     
+    print("#" * 10)
     print("# Peek the next request")
+    print("#" * 10)
+    
     try:
         scheduler.peekNext()
+        
     except Exception as e:
         print(f"Heap is empty, nothing left to peek: {e}")
 
 def menu(scheduler):
     option = 0
-    while option != 6:
+    while option != 7:
         print("===  Scheduler Menu ===")
         print("1 Request a pickup for a passenger")
         print("2 Dispatch the next request")

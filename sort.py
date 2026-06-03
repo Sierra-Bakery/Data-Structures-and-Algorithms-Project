@@ -463,15 +463,17 @@ def demonstration(graph, passengerTable, driverTable):
         print("=======================")
         print("MODULE 4 — SORTING DEMO")
         print("=======================")
-        print("\n")
 
         # small demo with 10 random records to show the sorting in action
-        print("\n--- Small demo (n=10, random) ---")
+        print("Small demo 10 values")
+        
         demo = generateDataset(10, "random", graph, passengerTable, driverTable)
+        
         print("Unsorted:")
         
         for i in range(len(demo)):
             print(f"    [{i}] {demo[i]}")
+            
 
         mainArray = _copyArr(demo)
         mainArray, mergeOperations = mergeSort(mainArray)
@@ -481,6 +483,7 @@ def demonstration(graph, passengerTable, driverTable):
 
         qArr = _copyArr(demo)
         qArr, quickOperations = quickSort(qArr)
+        
         printFirstLast(qArr, "Quick Sort result", n=5)
         print(f"Operations: {quickOperations:,}")
 
@@ -538,7 +541,7 @@ def menu(graph, passengerTable, driverTable):
                 print(f"Quick Sort operations: {quickOperations:,} | Correct: {_isSorted(qArr)}")
 
             except Exception as e:
-                print(f"  Error: {e}")
+                print(f"Error: {e}")
 
         elif option == 3:
             print("Exiting")
