@@ -482,11 +482,10 @@ class Scheduler():
     def heapSize(self):
         return self._heap.size()
 
-def demonstration(graph, passengerTable, driverTable):
+def demonstration(scheduler):
     # Demonstration for the scheduler and heap
     print("=== Scheduler Demonstration ===")
     
-    scheduler = Scheduler(graph, passengerTable, driverTable)
     passengerIDs = np.array([1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010])
     
     print("# Insert pickup requests for 10 passengers")
@@ -577,7 +576,7 @@ def menu(scheduler):
                 print(f"Error: {e}")
 
         elif option == 6:
-            demonstration(graph, passengerTable, driverTable)
+            demonstration(scheduler)
 
         elif option == 7:
             print("Exiting")
