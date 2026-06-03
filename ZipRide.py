@@ -30,6 +30,6 @@ while cont == "Y":
     print("Welcome to the ZipRide Dispatch System!")
     graph.menu(graphData)
     hash.menu(passengerTable, driverTable)
-    heap.menu(scheduler)
+    heap.menu(scheduler, graph, passengerTable, driverTable)
     sort.menu(graphData, passengerTable, driverTable)
     cont = input("Would you like to continue? (Y/N): ").upper()
