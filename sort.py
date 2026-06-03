@@ -7,6 +7,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import timeit
 import time
+import graph
 
 
 def _mergeSort(array, opCount, low, high):
