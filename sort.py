@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import timeit
 import time
 
-
 def _mergeSort(array, opCount, low, high):
     try:
         # Base case if single element is already sorted
