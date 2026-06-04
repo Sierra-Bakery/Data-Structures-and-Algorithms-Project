@@ -219,14 +219,16 @@ class Graph():
             current = self.vertices.head
             
             while current is not None:
-                inner = current.value.links.head # traverse linked list of edges for this vertex and count them
-                
+                inner = current.value.links.head
+
                 while inner is not None:
                     count += 1
                     inner = inner.next
-                    
+
                 current = current.next
-                count = count // 2
+
+            count = count // 2
+            return count
                 
             return count
         
@@ -581,33 +583,41 @@ class Graph():
                         minDist = dist[i]
                         u = i
 
-                # no reachable unvisited vertex remains OR destination reached
-                done = (u == -1) or (dist[u] == np.inf) or (u == destinationIndex)
-                
+
+                # no reachable unvisited vertex remains
+                done = (u == -1) or (dist[u] == np.inf)
+
                 if not done:
-                    # mark u visited and update distances to its unvisited neighbours weight by checking if 
-                    # dist[u] + weight(u,weight) < dist[weight]
+                    # mark u visited
                     visitedArr[u] = True
                     processedCount += 1
 
-                    vertex = self.getVertex(labels[u])
-                    inner = vertex.links.head
-                    while inner is not None:
-                        # for each neighbour
-                        weight = inner.value.vertex
-                        weight = inner.value.weight
-                        weightIndex = self._labelIndex(labels, weight.label)
-                        
-                        if not visitedArr[weightIndex]:
-                            # if dist[u] + weight < dist[weightIndex], update dist[weightIndex] and set previousArr[weightIndex] to u
-                            alt = dist[u] + weight
-                            if alt < dist[weightIndex]:
-                                dist[weightIndex] = alt
-                                previousArr[weightIndex] = u
-                        inner = inner.next
-                        
+                    # destination reached, stop algorithm
+                    if u == destinationIndex:
+                        processedCount = vertexCount
+
+                    else:
+                        # update distances to neighbours
+                        vertex = self.getVertex(labels[u])
+                        inner = vertex.links.head
+
+                        while inner is not None:
+                            neighbour = inner.value.vertex
+                            edgeWeight = inner.value.weight
+
+                            neighbourIndex = self._labelIndex(labels, neighbour.label)
+
+                            if not visitedArr[neighbourIndex]:
+                                alt = dist[u] + edgeWeight
+
+                                if alt < dist[neighbourIndex]:
+                                    dist[neighbourIndex] = alt
+                                    previousArr[neighbourIndex] = u
+
+                            inner = inner.next
+
                 else:
-                    processedCount = vertexCount  # exit condition: set to vertexCount to stop loop
+                    processedCount = vertexCount
 
             # reconstruct path using numpy array
             pathArray = np.empty(vertexCount, dtype=object)
